@@ -929,6 +929,31 @@ I18N.de.backup = {
   chooseFolder:"Ordner wählen", folderNotSupported:"In diesem Browser nicht unterstützt — nutze stattdessen Export/Import.", folderActive:"Automatische Speicherung nach: {name}", stopFolder:"Automatisches Speichern stoppen"
 };
 
+I18N.en.license = {
+  title:"License", statusUnlocked:"Full version unlocked", statusDemo:"Demo — sample data",
+  enterCode:"Enter your activation code", codePlaceholder:"COFA-B2C3-D4E5-F607", unlock:"Unlock",
+  invalidCode:"That code isn't valid. Double-check for typos.", unlockedMessage:"Unlocked! Thanks for supporting Coffer.",
+  whereToBuy:"Purchased on Etsy? Your activation code is included with your order.", demoNote:"Coffer is fully usable right now — an activation code just removes the demo label and sample data marking, permanently, on this device."
+};
+I18N.fr.license = {
+  title:"Licence", statusUnlocked:"Version complète débloquée", statusDemo:"Démo — données d'exemple",
+  enterCode:"Entrez votre code d'activation", codePlaceholder:"COFA-B2C3-D4E5-F607", unlock:"Débloquer",
+  invalidCode:"Ce code n'est pas valide. Vérifiez les fautes de frappe.", unlockedMessage:"Débloqué ! Merci de soutenir Coffer.",
+  whereToBuy:"Acheté sur Etsy ? Votre code d'activation est inclus avec votre commande.", demoNote:"Coffer est pleinement utilisable dès maintenant — un code d'activation retire simplement, de façon permanente sur cet appareil, la mention démo et les données d'exemple."
+};
+I18N.es.license = {
+  title:"Licencia", statusUnlocked:"Versión completa desbloqueada", statusDemo:"Demo — datos de ejemplo",
+  enterCode:"Introduce tu código de activación", codePlaceholder:"COFA-B2C3-D4E5-F607", unlock:"Desbloquear",
+  invalidCode:"Ese código no es válido. Revisa si hay errores.", unlockedMessage:"¡Desbloqueado! Gracias por apoyar a Coffer.",
+  whereToBuy:"¿Comprado en Etsy? Tu código de activación viene incluido con tu pedido.", demoNote:"Coffer ya es totalmente utilizable — un código de activación solo retira, de forma permanente en este dispositivo, la etiqueta de demo y el marcado de datos de ejemplo."
+};
+I18N.de.license = {
+  title:"Lizenz", statusUnlocked:"Vollversion freigeschaltet", statusDemo:"Demo — Beispieldaten",
+  enterCode:"Gib deinen Aktivierungscode ein", codePlaceholder:"COFA-B2C3-D4E5-F607", unlock:"Freischalten",
+  invalidCode:"Dieser Code ist ungültig. Auf Tippfehler prüfen.", unlockedMessage:"Freigeschaltet! Danke, dass du Coffer unterstützt.",
+  whereToBuy:"Bei Etsy gekauft? Dein Aktivierungscode liegt deiner Bestellung bei.", demoNote:"Coffer ist schon jetzt voll nutzbar — ein Aktivierungscode entfernt nur dauerhaft auf diesem Gerät die Demo-Kennzeichnung und die Beispieldaten-Markierung."
+};
+
 function t(key, params){
   const lang = (Store.get().settings.language) || "en";
   const [group, name] = key.split(".");
@@ -2064,9 +2089,6 @@ function renderBackupPanel(state){
     ])
   ]);
 }
-function renderLicensePanel(state){
-  return h("div.card", {}, [ h("h3",{},[t("settings.tabLicense")]), h("p",{},[t("common.noData")]) ]);
-}
 
 /* ===== SECTION: CALENDAR VIEW ===== */
 let calMonth = todayISO().slice(0,7);
@@ -2985,6 +3007,80 @@ function renderGuide(){
   ]));
 }
 ROUTE_HANDLERS.guide = renderGuide;
+
+/* ===== SECTION: LICENSING (isolated — safe to delete this whole section
+   plus its Settings tab if the monetization approach ever changes) =====
+   No server exists to validate a purchased code against, so codes are
+   self-checking: a checksum character derived from the rest of the code.
+   This isn't cryptographically strong (nothing client-side can be), but it
+   keeps casual typos from "accidentally" unlocking the app while requiring
+   no network round-trip, consistent with the offline-first requirement. */
+const LICENSE_ALPHABET = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZ"; // no I/O to avoid 1/0 confusion
+function licenseNormalize(code){ return (code||"").toUpperCase().replace(/[^0-9A-Z]/g,""); }
+function licenseChecksumChar(payload){
+  let sum = 0;
+  for(let i=0;i<payload.length;i++){ sum = (sum*31 + payload.charCodeAt(i)) % LICENSE_ALPHABET.length; }
+  return LICENSE_ALPHABET[sum];
+}
+function isValidLicenseCode(raw){
+  const norm = licenseNormalize(raw);
+  if(norm.length !== 13) return false;
+  const payload = norm.slice(0,12), check = norm.slice(12);
+  return licenseChecksumChar(payload) === check;
+}
+/** Produces a valid code from any seed text. Exposed on window for the
+ *  (non-existent) order-fulfillment process to call, and for manual
+ *  testing: window.__COFFER_LICENSE__.generateCode("anything"). */
+function generateLicenseCode(seedText){
+  const seed = licenseNormalize(seedText || uid("coffer"));
+  const payload = (seed+"COFFERPADXXXX").slice(0,12);
+  const full = payload + licenseChecksumChar(payload);
+  return full.match(/.{1,4}/g).join("-");
+}
+function formatLicenseCodeInput(raw){
+  const norm = licenseNormalize(raw).slice(0,13);
+  return norm.match(/.{1,4}/g) ? norm.match(/.{1,4}/g).join("-") : norm;
+}
+window.__COFFER_LICENSE__ = { isValidLicenseCode, generateLicenseCode };
+
+__COFFER_TESTS__.test("license: a generated code validates", (eq)=>{
+  const code = generateLicenseCode("order-12345");
+  eq(isValidLicenseCode(code), true);
+});
+__COFFER_TESTS__.test("license: a mistyped code fails validation", (eq)=>{
+  const code = generateLicenseCode("order-12345");
+  const mistyped = code.slice(0,-1) + (code.slice(-1)==="9"?"8":"9");
+  eq(isValidLicenseCode(mistyped), false);
+});
+
+function renderLicensePanel(state){
+  const lic = state.settings.license;
+  if(lic.unlocked){
+    return h("div.card", {}, [
+      h("h3",{},["✓ "+t("license.statusUnlocked")]),
+      h("p.hint",{},[t("license.whereToBuy")])
+    ]);
+  }
+  let draft = "";
+  const errorBox = h("div", {});
+  return h("div.card", {}, [
+    h("h3",{},[t("license.statusDemo")]),
+    h("p.hint", {}, [t("license.demoNote")]),
+    field(t("license.enterCode"), h("input", { type:"text", placeholder:t("license.codePlaceholder"), oninput:(e)=>{ draft=e.target.value; e.target.value=formatLicenseCodeInput(draft); draft=e.target.value; } })),
+    errorBox,
+    h("button.btn.btn-primary", { onclick:()=>{
+      if(isValidLicenseCode(draft)){
+        Store.mutate(s=>{ s.settings.license = { unlocked:true, code: licenseNormalize(draft) }; s.isDemo=false; });
+        toast(t("license.unlockedMessage"));
+        renderSettings();
+      } else {
+        errorBox.innerHTML = "";
+        errorBox.appendChild(h("p", { style:"color:var(--bad);font-size:12.5px;" }, [t("license.invalidCode")]));
+      }
+    } }, [t("license.unlock")]),
+    h("p.hint", {}, [t("license.whereToBuy")])
+  ]);
+}
 
 /* ===== SECTION: SECTION_INSERT_POINT ===== */
 window.__COFFER_BOOT_PLACEHOLDER__ = true;

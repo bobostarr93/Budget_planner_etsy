@@ -310,7 +310,35 @@ table.data-table tr:hover .row-actions{ opacity:1; }
 }
 .sidebar-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:19; }
 
-/* drag/drop + calendar specific, filled in later sections */
+/* ============================================================
+   CALENDAR
+   ============================================================ */
+.cal-toolbar{ display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+.cal-toolbar h2{ margin:0; min-width:170px; }
+.cal-toggles{ display:flex; gap:14px; margin-left:auto; font-size:12.5px; align-items:center; }
+.cal-toggles label{ display:flex; align-items:center; gap:5px; }
+.cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:6px; overflow:hidden; margin-bottom:18px; }
+.cal-dow{ background:var(--paper-raised); padding:6px 8px; font-size:11px; font-weight:700; text-transform:uppercase; color:var(--ink-faint); text-align:center; }
+.cal-day{ background:var(--paper-raised); min-height:96px; padding:5px; display:flex; flex-direction:column; gap:3px; cursor:pointer; }
+.cal-day.other-month{ background:var(--paper); opacity:.55; }
+.cal-day.today{ box-shadow:inset 0 0 0 2px var(--pine); }
+.cal-day.drag-over{ background:var(--pine-tint); }
+.cal-day .cal-daynum{ font-family:var(--font-serif); font-weight:700; font-size:12.5px; color:var(--ink-soft); }
+.cal-chip{ font-size:10.5px; padding:2px 5px; border-radius:4px; cursor:grab; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; border-left:3px solid; }
+.cal-chip.badge-income{ border-color:var(--good); }
+.cal-chip.badge-savings{ border-color:var(--pine); }
+.cal-chip.badge-bills{ border-color:var(--gold); }
+.cal-chip.badge-expenses{ border-color:var(--rust); }
+.cal-chip.badge-debtPayments{ border-color:var(--bad); }
+.cal-chip.badge-subscriptions{ border-color:var(--ink-faint); }
+.cal-chip.overdue{ outline:1px dashed var(--bad); }
+.cal-chip.paid{ opacity:.55; text-decoration:line-through; }
+.cal-more{ font-size:10px; color:var(--ink-faint); }
+.cal-slidein{ position:fixed; right:0; top:0; bottom:0; width:min(340px,86vw); background:var(--paper-raised); box-shadow:-8px 0 30px rgba(0,0,0,.2); z-index:90; padding:16px; overflow-y:auto; border-left:1px solid var(--line); }
+.cal-slidein-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.3); z-index:89; }
+@media (max-width:860px){
+  .cal-day{ min-height:52px; }
+}
 </style>
 </head>
 <body>
@@ -475,6 +503,118 @@ I18N.en.cat = { income:"Income", savings:"Savings", bills:"Bills", expenses:"Exp
 I18N.fr.cat = { income:"Revenus", savings:"Épargne", bills:"Factures", expenses:"Dépenses", debtPayments:"Remboursements de dettes", subscriptions:"Abonnements" };
 I18N.es.cat = { income:"Ingresos", savings:"Ahorros", bills:"Facturas", expenses:"Gastos", debtPayments:"Pagos de deuda", subscriptions:"Suscripciones" };
 I18N.de.cat = { income:"Einkommen", savings:"Ersparnisse", bills:"Rechnungen", expenses:"Ausgaben", debtPayments:"Schuldenzahlungen", subscriptions:"Abonnements" };
+
+I18N.en.tx = {
+  addTransaction:"Add transaction", editTransaction:"Edit transaction", deleteTransaction:"Delete transaction",
+  deleteThisOccurrence:"Delete this occurrence", deleteEntireSeries:"Delete entire series",
+  editThisOccurrence:"This occurrence only", editEntireSeries:"Entire series", applyChangesTo:"Apply changes to",
+  markPaid:"Mark paid", markUnpaid:"Mark unpaid", paidWithCard:"Paid with card", txType:"Type", payment:"Payment",
+  refund:"Refund", noAccount:"No account", selectCategory:"Select a category", nameHint:"Pick an existing name or type a new one.",
+  duplicateTitle:"This might be a duplicate", duplicateBody:"A similar transaction already exists nearby:",
+  saveAnyway:"Save anyway", recurrenceHint:"Recurring transactions generate future occurrences automatically.",
+  deletePrompt:"This transaction is part of a recurring series. What would you like to delete?",
+  confirmDeleteOne:"Delete just this occurrence?", confirmDeleteSeries:"Delete every occurrence of \"{name}\"? This cannot be undone.",
+  saved:"Transaction saved.", deleted:"Transaction deleted."
+};
+I18N.fr.tx = {
+  addTransaction:"Ajouter une transaction", editTransaction:"Modifier la transaction", deleteTransaction:"Supprimer la transaction",
+  deleteThisOccurrence:"Supprimer cette occurrence", deleteEntireSeries:"Supprimer toute la série",
+  editThisOccurrence:"Cette occurrence seulement", editEntireSeries:"Toute la série", applyChangesTo:"Appliquer les changements à",
+  markPaid:"Marquer payé", markUnpaid:"Marquer non payé", paidWithCard:"Payé par carte", txType:"Type", payment:"Paiement",
+  refund:"Remboursement", noAccount:"Aucun compte", selectCategory:"Choisir une catégorie", nameHint:"Choisissez un nom existant ou saisissez-en un nouveau.",
+  duplicateTitle:"Cela pourrait être un doublon", duplicateBody:"Une transaction similaire existe déjà à proximité :",
+  saveAnyway:"Enregistrer quand même", recurrenceHint:"Les transactions récurrentes génèrent automatiquement les prochaines occurrences.",
+  deletePrompt:"Cette transaction fait partie d'une série récurrente. Que souhaitez-vous supprimer ?",
+  confirmDeleteOne:"Supprimer uniquement cette occurrence ?", confirmDeleteSeries:"Supprimer toutes les occurrences de « {name} » ? Action irréversible.",
+  saved:"Transaction enregistrée.", deleted:"Transaction supprimée."
+};
+I18N.es.tx = {
+  addTransaction:"Añadir transacción", editTransaction:"Editar transacción", deleteTransaction:"Eliminar transacción",
+  deleteThisOccurrence:"Eliminar esta ocurrencia", deleteEntireSeries:"Eliminar toda la serie",
+  editThisOccurrence:"Solo esta ocurrencia", editEntireSeries:"Toda la serie", applyChangesTo:"Aplicar cambios a",
+  markPaid:"Marcar como pagado", markUnpaid:"Marcar como no pagado", paidWithCard:"Pagado con tarjeta", txType:"Tipo", payment:"Pago",
+  refund:"Reembolso", noAccount:"Sin cuenta", selectCategory:"Selecciona una categoría", nameHint:"Elige un nombre existente o escribe uno nuevo.",
+  duplicateTitle:"Esto podría ser un duplicado", duplicateBody:"Ya existe una transacción similar cerca:",
+  saveAnyway:"Guardar de todos modos", recurrenceHint:"Las transacciones recurrentes generan futuras ocurrencias automáticamente.",
+  deletePrompt:"Esta transacción forma parte de una serie recurrente. ¿Qué deseas eliminar?",
+  confirmDeleteOne:"¿Eliminar solo esta ocurrencia?", confirmDeleteSeries:"¿Eliminar todas las ocurrencias de «{name}»? Esto no se puede deshacer.",
+  saved:"Transacción guardada.", deleted:"Transacción eliminada."
+};
+I18N.de.tx = {
+  addTransaction:"Transaktion hinzufügen", editTransaction:"Transaktion bearbeiten", deleteTransaction:"Transaktion löschen",
+  deleteThisOccurrence:"Nur dieses Vorkommen löschen", deleteEntireSeries:"Gesamte Serie löschen",
+  editThisOccurrence:"Nur dieses Vorkommen", editEntireSeries:"Gesamte Serie", applyChangesTo:"Änderungen anwenden auf",
+  markPaid:"Als bezahlt markieren", markUnpaid:"Als unbezahlt markieren", paidWithCard:"Mit Karte bezahlt", txType:"Typ", payment:"Zahlung",
+  refund:"Rückerstattung", noAccount:"Kein Konto", selectCategory:"Kategorie auswählen", nameHint:"Vorhandenen Namen wählen oder neuen eingeben.",
+  duplicateTitle:"Das könnte ein Duplikat sein", duplicateBody:"Eine ähnliche Transaktion existiert bereits in der Nähe:",
+  saveAnyway:"Trotzdem speichern", recurrenceHint:"Wiederkehrende Transaktionen erzeugen automatisch zukünftige Vorkommen.",
+  deletePrompt:"Diese Transaktion gehört zu einer wiederkehrenden Serie. Was möchtest du löschen?",
+  confirmDeleteOne:"Nur dieses Vorkommen löschen?", confirmDeleteSeries:"Alle Vorkommen von „{name}“ löschen? Dies kann nicht rückgängig gemacht werden.",
+  saved:"Transaktion gespeichert.", deleted:"Transaktion gelöscht."
+};
+
+I18N.en.list = { title:"Transactions", noResults:"No transactions match these filters.", monthAll:"All months", yearAll:"All years",
+  accountAll:"All accounts", categoryAll:"All categories", statusAll:"All statuses", priorityAll:"All priorities",
+  sortDate:"Sort by date", addNew:"Add transaction" };
+I18N.fr.list = { title:"Transactions", noResults:"Aucune transaction ne correspond à ces filtres.", monthAll:"Tous les mois", yearAll:"Toutes les années",
+  accountAll:"Tous les comptes", categoryAll:"Toutes les catégories", statusAll:"Tous les statuts", priorityAll:"Toutes les priorités",
+  sortDate:"Trier par date", addNew:"Ajouter une transaction" };
+I18N.es.list = { title:"Transacciones", noResults:"Ninguna transacción coincide con estos filtros.", monthAll:"Todos los meses", yearAll:"Todos los años",
+  accountAll:"Todas las cuentas", categoryAll:"Todas las categorías", statusAll:"Todos los estados", priorityAll:"Todas las prioridades",
+  sortDate:"Ordenar por fecha", addNew:"Añadir transacción" };
+I18N.de.list = { title:"Transaktionen", noResults:"Keine Transaktionen entsprechen diesen Filtern.", monthAll:"Alle Monate", yearAll:"Alle Jahre",
+  accountAll:"Alle Konten", categoryAll:"Alle Kategorien", statusAll:"Alle Status", priorityAll:"Alle Prioritäten",
+  sortDate:"Nach Datum sortieren", addNew:"Transaktion hinzufügen" };
+
+I18N.en.settings = {
+  title:"Settings", tabGeneral:"General", tabCategories:"Categories & priorities", tabData:"Backup & data", tabLicense:"License",
+  language:"Language", theme:"Theme", themeLight:"Light", themeDark:"Dark", currencySymbol:"Currency symbol",
+  currencyPosition:"Currency position", positionBefore:"Before amount ($10)", positionAfter:"After amount (10$)",
+  weekStart:"Week starts on", sunday:"Sunday", monday:"Monday", categoryNamesTitle:"Custom names per category",
+  priorityNamesTitle:"Priority level names", addName:"Add name", removeName:"Remove", storageUsed:"Local storage used",
+  storageWarning:"You're approaching the browser's local storage limit. Export a backup soon.",
+  budgetingStrategy:"Budgeting strategy", strategyCarried:"Carried-over (unspent rolls to next period)", strategyZero:"Zero-based (every dollar assigned)",
+  saved:"Settings saved."
+};
+I18N.fr.settings = {
+  title:"Paramètres", tabGeneral:"Général", tabCategories:"Catégories et priorités", tabData:"Sauvegarde et données", tabLicense:"Licence",
+  language:"Langue", theme:"Thème", themeLight:"Clair", themeDark:"Sombre", currencySymbol:"Symbole monétaire",
+  currencyPosition:"Position de la devise", positionBefore:"Avant le montant ($10)", positionAfter:"Après le montant (10$)",
+  weekStart:"La semaine commence le", sunday:"Dimanche", monday:"Lundi", categoryNamesTitle:"Noms personnalisés par catégorie",
+  priorityNamesTitle:"Noms des niveaux de priorité", addName:"Ajouter un nom", removeName:"Retirer", storageUsed:"Stockage local utilisé",
+  storageWarning:"Vous approchez de la limite de stockage local du navigateur. Exportez une sauvegarde bientôt.",
+  budgetingStrategy:"Stratégie budgétaire", strategyCarried:"Report (le solde non dépensé est reporté)", strategyZero:"Base zéro (chaque euro est attribué)",
+  saved:"Paramètres enregistrés."
+};
+I18N.es.settings = {
+  title:"Ajustes", tabGeneral:"General", tabCategories:"Categorías y prioridades", tabData:"Copia de seguridad y datos", tabLicense:"Licencia",
+  language:"Idioma", theme:"Tema", themeLight:"Claro", themeDark:"Oscuro", currencySymbol:"Símbolo de moneda",
+  currencyPosition:"Posición de la moneda", positionBefore:"Antes del importe ($10)", positionAfter:"Después del importe (10$)",
+  weekStart:"La semana empieza en", sunday:"Domingo", monday:"Lunes", categoryNamesTitle:"Nombres personalizados por categoría",
+  priorityNamesTitle:"Nombres de los niveles de prioridad", addName:"Añadir nombre", removeName:"Quitar", storageUsed:"Almacenamiento local usado",
+  storageWarning:"Te estás acercando al límite de almacenamiento local del navegador. Exporta una copia de seguridad pronto.",
+  budgetingStrategy:"Estrategia de presupuesto", strategyCarried:"Acumulativo (lo no gastado pasa al siguiente período)", strategyZero:"Base cero (cada euro asignado)",
+  saved:"Ajustes guardados."
+};
+I18N.de.settings = {
+  title:"Einstellungen", tabGeneral:"Allgemein", tabCategories:"Kategorien & Prioritäten", tabData:"Sicherung & Daten", tabLicense:"Lizenz",
+  language:"Sprache", theme:"Design", themeLight:"Hell", themeDark:"Dunkel", currencySymbol:"Währungssymbol",
+  currencyPosition:"Position der Währung", positionBefore:"Vor dem Betrag ($10)", positionAfter:"Nach dem Betrag (10$)",
+  weekStart:"Woche beginnt am", sunday:"Sonntag", monday:"Montag", categoryNamesTitle:"Benutzerdefinierte Namen pro Kategorie",
+  priorityNamesTitle:"Namen der Prioritätsstufen", addName:"Namen hinzufügen", removeName:"Entfernen", storageUsed:"Genutzter lokaler Speicher",
+  storageWarning:"Du näherst dich dem lokalen Speicherlimit des Browsers. Exportiere bald eine Sicherung.",
+  budgetingStrategy:"Budgetierungsstrategie", strategyCarried:"Übertrag (nicht Ausgegebenes wird übertragen)", strategyZero:"Zero-Based (jeder Euro zugewiesen)",
+  saved:"Einstellungen gespeichert."
+};
+
+I18N.en.cal = { title:"Calendar", showRecurring:"Recurring", showVariable:"Variable", weekTotal:"Due this week", cumulative:"Running total",
+  moreCount:"+{n} more", dayPanelAdd:"Add for this day", noneToday:"Nothing due this day." };
+I18N.fr.cal = { title:"Calendrier", showRecurring:"Récurrentes", showVariable:"Variables", weekTotal:"Dû cette semaine", cumulative:"Total cumulé",
+  moreCount:"+{n} de plus", dayPanelAdd:"Ajouter pour ce jour", noneToday:"Rien de prévu ce jour." };
+I18N.es.cal = { title:"Calendario", showRecurring:"Recurrentes", showVariable:"Variables", weekTotal:"Vence esta semana", cumulative:"Total acumulado",
+  moreCount:"+{n} más", dayPanelAdd:"Añadir para este día", noneToday:"Nada pendiente este día." };
+I18N.de.cal = { title:"Kalender", showRecurring:"Wiederkehrend", showVariable:"Variabel", weekTotal:"Fällig diese Woche", cumulative:"Laufende Summe",
+  moreCount:"+{n} weitere", dayPanelAdd:"Für diesen Tag hinzufügen", noneToday:"An diesem Tag steht nichts an." };
 
 function t(key, params){
   const lang = (Store.get().settings.language) || "en";
@@ -705,6 +845,7 @@ const __COFFER_TESTS__ = (function(){
   function assertTrue(cond,msg){ if(!cond) throw new Error(msg||"assertTrue failed"); }
   return { test, run };
 })();
+window.__COFFER_TESTS__ = __COFFER_TESTS__;
 
 /* ===== SECTION: SELECTORS (derived data) =====
    Placeholder balance/overdue math for the shell; the full transaction
@@ -848,7 +989,7 @@ function renderStatusBar(){
     h("div.stat", {}, [ h("div.lbl",{},[t("shell.overdueCount")]), h("div.val.num"+(overdue>0?" bad":""),{},[String(overdue)]) ]),
     h("div.stat", {}, [ h("div.lbl",{},[t("shell.todayLabel")]), h("div.val",{},[fmtDate(todayISO())]) ]),
     h("div.statusbar-actions", {}, [
-      h("button.btn.btn-primary.btn-sm", { onclick: ()=> openTransactionModal() }, ["+ "+t("common.add")])
+      h("button.btn.btn-primary.btn-sm", { onclick: ()=> openTransactionModal(null,{onSaved: refreshCurrentRoute}) }, ["+ "+t("common.add")])
     ])
   ]);
 }
@@ -914,7 +1055,7 @@ let ROUTE_HANDLERS = {
   "guide": placeholderRoute("Quick Start Guide")
 };
 function mountRoute(){ Router._current && ROUTE_HANDLERS[Router._current] && ROUTE_HANDLERS[Router._current](); }
-function openTransactionModal(){ toast("Transaction modal lands in phase 2."); }
+function refreshCurrentRoute(){ refreshShellChrome(); mountRoute(); }
 
 /* ===== SECTION: BOOT ===== */
 function applyTheme(){
@@ -923,6 +1064,7 @@ function applyTheme(){
 }
 function boot(){
   Store.init();
+  Store.mutate(s=> ensureRecurringHorizons(s), { silent:true });
   applyTheme();
   DataLayer.setAfterSaveHook(()=>{ /* auto-folder writer hooks in later */ });
   Object.keys(ROUTE_HANDLERS).forEach(name=>{
@@ -939,6 +1081,645 @@ function boot(){
 function refreshShellChromeIfNeeded(){ /* placeholder for future active-tab bookkeeping */ }
 
 if(document.readyState==="loading"){ document.addEventListener("DOMContentLoaded", boot); } else { boot(); }
+
+/* ===== SECTION: TRANSACTION ENGINE =====
+   Recurring transactions are materialized as concrete occurrence records
+   (not computed virtually at render time) so each occurrence can carry its
+   own paid/planned status and be edited independently. All occurrences of
+   one recurring transaction share a seriesId. */
+const RECUR_HORIZON_YEARS = 2;
+function recurrenceHorizonISO(){ return addYears(todayISO(), RECUR_HORIZON_YEARS); }
+
+function stepDate(iso, frequency){
+  switch(frequency){
+    case "daily": return addDays(iso,1);
+    case "weekly": return addDays(iso,7);
+    case "biweekly": return addDays(iso,14);
+    case "monthly": return addMonths(iso,1);
+    case "every2months": return addMonths(iso,2);
+    case "quarterly": return addMonths(iso,3);
+    case "yearly": return addYears(iso,1);
+    default: return null;
+  }
+}
+/** Pure function: given a start date + frequency, returns the list of ISO
+ *  occurrence dates from startISO through min(endISO, horizonISO) inclusive. */
+function generateOccurrenceDates(startISO, frequency, endISO, horizonISO){
+  if(!frequency || frequency==="oneTime") return [startISO];
+  const stop = (endISO && endISO < horizonISO) ? endISO : horizonISO;
+  const dates = [];
+  let cur = startISO;
+  let guard = 0;
+  while(cur <= stop && guard < 2000){
+    dates.push(cur);
+    cur = stepDate(cur, frequency);
+    if(!cur) break;
+    guard++;
+  }
+  return dates;
+}
+
+function newTransactionBase(){
+  return { id:null, category:"expenses", name:"", accountId:null, amount:0, dueDate:todayISO(),
+    status:"planned", priority:2, type:"payment", paidWithCard:false, notes:"",
+    recurrence:{ frequency:"oneTime", endDate:null }, seriesId:null, isVariable:true, personId:null };
+}
+
+/** Adds a transaction. If recurrence.frequency is not one-time, materializes
+ *  the whole series up to the horizon (or its endDate). Returns the created
+ *  record(s). markFirstPaid marks only the first occurrence as paid. */
+function addTransactionToState(state, data, markFirstPaid){
+  const seriesId = uid("series");
+  const freq = (data.recurrence && data.recurrence.frequency) || "oneTime";
+  const endDate = (data.recurrence && data.recurrence.endDate) || null;
+  const dates = generateOccurrenceDates(data.dueDate, freq, endDate, recurrenceHorizonISO());
+  const created = dates.map((d,i)=> Object.assign({}, newTransactionBase(), data, {
+    id: uid("tx"), dueDate: d, seriesId,
+    recurrence: { frequency:freq, endDate },
+    status: (i===0 && markFirstPaid) ? "paid" : "planned",
+    isVariable: freq==="oneTime" ? !!data.isVariable : false
+  }));
+  state.transactions.push(...created);
+  return created;
+}
+
+function findTx(state, id){ return state.transactions.find(t=>t.id===id); }
+function seriesOf(state, seriesId){ return state.transactions.filter(t=>t.seriesId===seriesId); }
+
+function updateOccurrence(state, id, changes){
+  const tx = findTx(state, id);
+  if(!tx) return null;
+  Object.assign(tx, changes);
+  return tx;
+}
+
+/** Applies field changes to every not-yet-paid occurrence in the series.
+ *  If the frequency or end date changed, future (unpaid) occurrences are
+ *  regenerated from the edited occurrence's date forward. */
+function updateSeries(state, seriesId, fromTxId, changes){
+  const members = seriesOf(state, seriesId);
+  const anchor = members.find(t=>t.id===fromTxId) || members[0];
+  if(!anchor) return [];
+  const freqChanged = changes.recurrence && (changes.recurrence.frequency !== anchor.recurrence.frequency || changes.recurrence.endDate !== anchor.recurrence.endDate);
+  const staticFields = ["category","name","accountId","amount","priority","type","paidWithCard","notes","isVariable","personId"];
+  members.forEach(m=>{
+    if(m.status==="paid") return;
+    staticFields.forEach(f=>{ if(changes[f]!==undefined) m[f]=changes[f]; });
+  });
+  if(freqChanged){
+    const unpaidFuture = members.filter(m=> m.status!=="paid" && m.dueDate>=anchor.dueDate);
+    unpaidFuture.forEach(m=>{ const idx=state.transactions.indexOf(m); if(idx>=0) state.transactions.splice(idx,1); });
+    const freq = changes.recurrence.frequency;
+    const endDate = changes.recurrence.endDate || null;
+    const dates = generateOccurrenceDates(anchor.dueDate, freq, endDate, recurrenceHorizonISO());
+    const template = Object.assign({}, anchor, changes, { recurrence:{frequency:freq,endDate} });
+    dates.forEach(d=>{
+      state.transactions.push(Object.assign({}, newTransactionBase(), template, { id: uid("tx"), dueDate:d, seriesId, status:"planned" }));
+    });
+  }
+  return seriesOf(state, seriesId);
+}
+
+function deleteOccurrence(state, id){
+  const idx = state.transactions.findIndex(t=>t.id===id);
+  if(idx>=0) state.transactions.splice(idx,1);
+}
+function deleteSeries(state, seriesId){
+  state.transactions = state.transactions.filter(t=>t.seriesId!==seriesId);
+}
+
+/** Extends any recurring series whose materialized occurrences don't yet
+ *  reach the rolling horizon (called on boot so long-lived data files keep
+ *  generating future occurrences without the user re-opening each series). */
+function ensureRecurringHorizons(state){
+  const bySeries = {};
+  state.transactions.forEach(t=>{ if(t.recurrence.frequency!=="oneTime"){ (bySeries[t.seriesId]=bySeries[t.seriesId]||[]).push(t); } });
+  const horizon = recurrenceHorizonISO();
+  Object.keys(bySeries).forEach(sid=>{
+    const members = bySeries[sid].sort((a,b)=>a.dueDate<b.dueDate?-1:1);
+    const last = members[members.length-1];
+    const endDate = last.recurrence.endDate;
+    if(endDate && last.dueDate>=endDate) return;
+    if(last.dueDate >= horizon) return;
+    const nextStart = stepDate(last.dueDate, last.recurrence.frequency);
+    if(!nextStart) return;
+    const dates = generateOccurrenceDates(nextStart, last.recurrence.frequency, endDate, horizon);
+    dates.forEach(d=>{
+      state.transactions.push(Object.assign({}, newTransactionBase(), last, { id: uid("tx"), dueDate:d, status:"planned" }));
+    });
+  });
+}
+
+/** Likely-duplicate detection for variable (one-off) transactions: same
+ *  category+name (case-insensitive) and amount, due within a few days of
+ *  an existing entry. Excludes the transaction being edited (excludeId). */
+const DUPLICATE_WINDOW_DAYS = 4;
+function findLikelyDuplicates(state, candidate, excludeId){
+  return state.transactions.filter(t=>{
+    if(t.id===excludeId) return false;
+    if(t.category!==candidate.category) return false;
+    if((t.name||"").trim().toLowerCase() !== (candidate.name||"").trim().toLowerCase()) return false;
+    if(Math.abs((t.amount||0)-(candidate.amount||0)) > 0.005) return false;
+    return Math.abs(daysBetween(t.dueDate, candidate.dueDate)) <= DUPLICATE_WINDOW_DAYS;
+  });
+}
+
+__COFFER_TESTS__.test("generateOccurrenceDates: one-time returns single date", (eq)=>{
+  eq(generateOccurrenceDates("2026-01-05","oneTime",null,"2027-01-05"), ["2026-01-05"]);
+});
+__COFFER_TESTS__.test("generateOccurrenceDates: monthly expands across months", (eq)=>{
+  const dates = generateOccurrenceDates("2026-01-31","monthly",null,"2026-04-30");
+  eq(dates, ["2026-01-31","2026-02-28","2026-03-28","2026-04-28"]);
+});
+__COFFER_TESTS__.test("generateOccurrenceDates: respects endDate before horizon", (eq)=>{
+  const dates = generateOccurrenceDates("2026-01-01","weekly","2026-01-22","2027-01-01");
+  eq(dates, ["2026-01-01","2026-01-08","2026-01-15","2026-01-22"]);
+});
+__COFFER_TESTS__.test("addTransactionToState: materializes a monthly series", (eq)=>{
+  const state = defaultState();
+  const created = addTransactionToState(state, Object.assign(newTransactionBase(),{ name:"Rent", amount:1000, dueDate:"2026-01-01", recurrence:{frequency:"monthly", endDate:"2026-04-01"} }));
+  eq(created.length, 4);
+  eq(created.every(c=>c.seriesId===created[0].seriesId), true);
+});
+__COFFER_TESTS__.test("deleteOccurrence removes only one record", (eq)=>{
+  const state = defaultState();
+  const created = addTransactionToState(state, Object.assign(newTransactionBase(),{ name:"Gym", amount:20, dueDate:"2026-01-01", recurrence:{frequency:"monthly", endDate:"2026-03-01"} }));
+  deleteOccurrence(state, created[1].id);
+  eq(state.transactions.length, 2);
+});
+__COFFER_TESTS__.test("deleteSeries removes every occurrence sharing seriesId", (eq)=>{
+  const state = defaultState();
+  addTransactionToState(state, Object.assign(newTransactionBase(),{ name:"Gym", amount:20, dueDate:"2026-01-01", recurrence:{frequency:"monthly", endDate:"2026-03-01"} }));
+  const seriesId = state.transactions[0].seriesId;
+  deleteSeries(state, seriesId);
+  eq(state.transactions.length, 0);
+});
+__COFFER_TESTS__.test("computeAccountBalance sums only paid transactions", (eq)=>{
+  const state = defaultState();
+  state.accounts.push({ id:"a1", name:"Checking", type:"checking", startingBalance:100 });
+  state.transactions.push({ id:"t1", category:"income", accountId:"a1", amount:50, status:"paid", dueDate:"2026-01-01", name:"x", recurrence:{frequency:"oneTime"} });
+  state.transactions.push({ id:"t2", category:"expenses", accountId:"a1", amount:30, status:"planned", dueDate:"2026-01-05", name:"y", recurrence:{frequency:"oneTime"} });
+  eq(computeAccountBalance(state,"a1"), 150);
+});
+__COFFER_TESTS__.test("findLikelyDuplicates flags same name+amount within window", (eq)=>{
+  const state = defaultState();
+  state.transactions.push({ id:"t1", category:"expenses", name:"Groceries", amount:40, dueDate:"2026-03-10", recurrence:{frequency:"oneTime"} });
+  const dupes = findLikelyDuplicates(state, { category:"expenses", name:"groceries", amount:40, dueDate:"2026-03-12" });
+  eq(dupes.length, 1);
+  const notDupe = findLikelyDuplicates(state, { category:"expenses", name:"groceries", amount:40, dueDate:"2026-03-20" });
+  eq(notDupe.length, 0);
+});
+
+/* ===== SECTION: TRANSACTION MODAL (add/edit UI) ===== */
+function categoryOptions(){ return CATEGORY_KEYS.map(k=>({ value:k, label:t("cat."+k) })); }
+function accountOptions(state){ return state.accounts.map(a=>({ value:a.id, label:a.name })); }
+function priorityOptions(state){ return state.settings.priorityNames.map((name,i)=>({ value:String(i), label:name })); }
+function nameOptionsFor(state, category){ return (state.settings.categoryNames[category]||[]); }
+
+function field(labelText, inputEl, hint, helpText){
+  return h("div.field", {}, [
+    h("label", {}, [labelText, helpText ? h("span.help-icon", { title:helpText }, ["?"]) : null]),
+    inputEl,
+    hint ? h("div.hint", {}, [hint]) : null
+  ]);
+}
+function selectEl(options, value, onChange){
+  const sel = h("select", { onchange:(e)=>onChange(e.target.value) },
+    options.map(o=> h("option", { value:o.value, selected:String(o.value)===String(value) }, [o.label])));
+  return sel;
+}
+
+function openTransactionModal(existingTx, opts){
+  opts = opts || {};
+  const state = Store.get();
+  const isEdit = !!existingTx;
+  const isSeriesMember = isEdit && existingTx.recurrence && existingTx.recurrence.frequency !== "oneTime";
+  const form = isEdit ? deepClone(existingTx) : Object.assign(newTransactionBase(), { dueDate: opts.presetDate || todayISO() });
+  if(!isEdit) form.recurrence = { frequency:"oneTime", endDate:null };
+  let editScope = "occurrence";
+  let dupeConfirmed = false;
+  let pendingDupes = [];
+
+  function fieldsForCategory(){
+    const extra = [];
+    if(form.category==="expenses"){
+      extra.push(field(t("common.type"), selectEl([{value:"payment",label:t("tx.payment")},{value:"refund",label:t("tx.refund")}], form.type, v=>{ form.type=v; }), null, null));
+      extra.push(h("div.checkbox-field", {}, [
+        h("input", { type:"checkbox", id:"pwc", checked:form.paidWithCard, onchange:(e)=>{ form.paidWithCard=e.target.checked; } }),
+        h("label", { for:"pwc" }, [t("tx.paidWithCard")])
+      ]));
+    }
+    return extra;
+  }
+
+  function bodyEl(){
+    const nameListId = "namelist-"+form.category;
+    const body = h("form.tx-form", { onsubmit:(e)=>e.preventDefault() }, [
+      field(t("common.category"), selectEl(categoryOptions(), form.category, v=>{ form.category=v; rerender(); }), null, null),
+      field(t("common.name"), h("div", {}, [
+        h("input", { type:"text", list:nameListId, value:form.name, oninput:(e)=>{ form.name=e.target.value; } }),
+        h("datalist", { id:nameListId }, nameOptionsFor(state, form.category).map(n=>h("option",{value:n})))
+      ]), t("tx.nameHint")),
+      h("div.field-row", {}, [
+        field(t("common.amount"), h("input", { type:"number", step:"0.01", min:"0", value:form.amount, oninput:(e)=>{ form.amount=parseFloat(e.target.value)||0; } })),
+        field(t("common.date"), h("input", { type:"date", value:form.dueDate, oninput:(e)=>{ form.dueDate=e.target.value; } }))
+      ]),
+      h("div.field-row", {}, [
+        field(t("common.account"), selectEl([{value:"",label:t("tx.noAccount")}].concat(accountOptions(state)), form.accountId||"", v=>{ form.accountId=v||null; })),
+        field(t("common.priority"), selectEl(priorityOptions(state), String(form.priority), v=>{ form.priority=Number(v); }))
+      ]),
+      h("div.field-row", {}, [
+        field(t("common.frequency"), selectEl(RECUR_FREQS.map(f=>({value:f,label:t("common."+f)})), form.recurrence.frequency, v=>{ form.recurrence.frequency=v; rerender(); })),
+        form.recurrence.frequency!=="oneTime" ? field(t("common.endDate"), h("input", { type:"date", value:form.recurrence.endDate||"", oninput:(e)=>{ form.recurrence.endDate=e.target.value||null; } })) : null
+      ]),
+      form.recurrence.frequency!=="oneTime" ? h("div.hint", { style:"margin:-6px 0 12px;" }, [t("tx.recurrenceHint")]) : null,
+      ...fieldsForCategory(),
+      field(t("common.notes"), h("textarea", { oninput:(e)=>{ form.notes=e.target.value; } }, [form.notes||""])),
+      isSeriesMember ? field(t("tx.applyChangesTo"), selectEl([
+        {value:"occurrence",label:t("tx.editThisOccurrence")}, {value:"series",label:t("tx.editEntireSeries")}
+      ], editScope, v=>{ editScope=v; })) : null,
+      h("div#dupeWarning", {})
+    ]);
+    return body;
+  }
+
+  let overlayRef;
+  function rerender(){
+    const mount = document.getElementById("modalBodyMount");
+    mount.innerHTML = "";
+    mount.appendChild(bodyEl());
+  }
+
+  function showDupeWarning(dupes){
+    const holder = document.getElementById("dupeWarning");
+    if(!holder) return;
+    holder.innerHTML = "";
+    if(!dupes.length) return;
+    holder.appendChild(h("div.card", { style:"background:var(--gold-tint);border-color:var(--gold);margin:8px 0 0;" }, [
+      h("strong", {}, ["⚠ "+t("tx.duplicateTitle")]),
+      h("p", { style:"margin:6px 0;" }, [t("tx.duplicateBody")]),
+      h("ul", { style:"margin:0 0 0 18px;padding:0;font-size:12.5px;" }, dupes.map(d=>h("li",{},[`${d.name} — ${fmtMoney(d.amount)} — ${fmtDate(d.dueDate)}`])))
+    ]));
+  }
+
+  function doSave(markPaid, keepOpen){
+    if(!form.name || !form.name.trim()){ toast(t("common.error")+": "+t("common.name"), "error"); return; }
+    if(form.recurrence.frequency==="oneTime" && !dupeConfirmed){
+      pendingDupes = findLikelyDuplicates(state, form, isEdit?existingTx.id:null);
+      if(pendingDupes.length){ dupeConfirmed = true; showDupeWarning(pendingDupes); return; }
+    }
+    Store.mutate(s=>{
+      const catList = s.settings.categoryNames[form.category] = s.settings.categoryNames[form.category] || [];
+      if(form.name && !catList.some(n=>n.toLowerCase()===form.name.toLowerCase())) catList.push(form.name);
+      if(isEdit){
+        const changes = { category:form.category, name:form.name, accountId:form.accountId, amount:form.amount,
+          priority:form.priority, type:form.type, paidWithCard:form.paidWithCard, notes:form.notes,
+          isVariable: form.recurrence.frequency==="oneTime", recurrence: form.recurrence };
+        if(isSeriesMember && editScope==="series"){
+          updateOccurrence(s, existingTx.id, { dueDate: form.dueDate });
+          updateSeries(s, existingTx.seriesId, existingTx.id, changes);
+        } else {
+          updateOccurrence(s, existingTx.id, Object.assign({ dueDate:form.dueDate }, changes));
+        }
+        if(markPaid) updateOccurrence(s, existingTx.id, { status:"paid" });
+      } else {
+        const created = addTransactionToState(s, form, markPaid);
+        if(opts.onCreated) opts.onCreated(created);
+      }
+    });
+    toast(t("tx.saved"));
+    if(keepOpen){
+      Object.assign(form, newTransactionBase(), { dueDate: form.dueDate, category:form.category, accountId:form.accountId });
+      dupeConfirmed=false;
+      rerender();
+    } else {
+      closeModal();
+    }
+    if(opts.onSaved) opts.onSaved();
+  }
+
+  function doDelete(){
+    if(isSeriesMember){
+      openModal({
+        title: t("tx.deleteTransaction"),
+        body: h("p", {}, [t("tx.deletePrompt")]),
+        footer: [
+          h("button.btn", { onclick:()=>closeModal() }, [t("common.cancel")]),
+          h("button.btn.btn-danger", { onclick:()=>{ closeModal(); Store.mutate(s=>deleteOccurrence(s, existingTx.id)); toast(t("tx.deleted")); closeModal(); if(opts.onSaved) opts.onSaved(); } }, [t("tx.deleteThisOccurrence")]),
+          h("button.btn.btn-danger", { onclick:()=>{ closeModal(); Store.mutate(s=>deleteSeries(s, existingTx.seriesId)); toast(t("tx.deleted")); closeModal(); if(opts.onSaved) opts.onSaved(); } }, [t("tx.deleteEntireSeries")])
+        ]
+      });
+    } else {
+      confirmDialog(t("tx.confirmDeleteOne"), ()=>{ Store.mutate(s=>deleteOccurrence(s, existingTx.id)); toast(t("tx.deleted")); closeModal(); if(opts.onSaved) opts.onSaved(); });
+    }
+  }
+
+  const footer = [
+    isEdit ? h("button.btn.btn-danger", { onclick:doDelete, style:"margin-right:auto;" }, [t("common.delete")]) : null,
+    h("button.btn", { onclick:()=>closeModal() }, [t("common.cancel")]),
+    h("button.btn", { onclick:()=>doSave(false, true) }, [t("common.saveAddAnother")]),
+    h("button.btn.btn-primary", { onclick:()=>doSave(true,false) }, [t("common.saveMarkPaid")]),
+    h("button.btn.btn-primary", { onclick:()=>doSave(false,false) }, [t("common.save")])
+  ];
+  overlayRef = openModal({ title: isEdit ? t("tx.editTransaction") : t("tx.addTransaction"), body: bodyEl(), footer });
+}
+
+function quickTransactionPopup(tx, anchorLabel){
+  const state = Store.get();
+  const status = deriveStatus(tx);
+  openModal({
+    title: tx.name,
+    body: h("div", {}, [
+      h("p", {}, [ h("span.badge.badge-"+tx.category, {}, [t("cat."+tx.category)]), " ", h("span.badge.badge-"+status,{},[t("common."+status)]) ]),
+      h("p", { class:"num", style:"font-size:20px;font-weight:700;" }, [fmtMoney(tx.amount)]),
+      h("p", {}, [fmtDate(tx.dueDate)]),
+      tx.notes ? h("p", { style:"color:var(--ink-soft);" }, [tx.notes]) : null
+    ]),
+    footer: [
+      h("button.btn", { onclick:()=>{ closeModal(); openTransactionModal(tx, { onSaved: window.__rerouteRefresh }); } }, [t("common.edit")]),
+      status==="paid"
+        ? h("button.btn", { onclick:()=>{ Store.mutate(s=>updateOccurrence(s, tx.id, { status:"planned" })); closeModal(); if(window.__rerouteRefresh) window.__rerouteRefresh(); } }, [t("tx.markUnpaid")])
+        : h("button.btn.btn-primary", { onclick:()=>{ Store.mutate(s=>updateOccurrence(s, tx.id, { status:"paid" })); closeModal(); if(window.__rerouteRefresh) window.__rerouteRefresh(); } }, [t("tx.markPaid")])
+    ]
+  });
+}
+
+/* ===== SECTION: TRANSACTIONS LIST VIEW ===== */
+let listFilters = { status:"", priority:"", category:"", month:"", year:"", account:"", q:"" };
+function renderTransactionsList(){
+  const state = Store.get();
+  window.__rerouteRefresh = renderTransactionsList;
+  const years = Array.from(new Set(state.transactions.map(t=>String(yearOf(t.dueDate))))).sort();
+  let rows = state.transactions.slice();
+  if(listFilters.status) rows = rows.filter(t=>deriveStatus(t)===listFilters.status);
+  if(listFilters.priority!=="") rows = rows.filter(t=>String(t.priority)===String(listFilters.priority));
+  if(listFilters.category) rows = rows.filter(t=>t.category===listFilters.category);
+  if(listFilters.month) rows = rows.filter(t=>ymOf(t.dueDate)===listFilters.month);
+  if(listFilters.year) rows = rows.filter(t=>String(yearOf(t.dueDate))===listFilters.year);
+  if(listFilters.account) rows = rows.filter(t=>t.accountId===listFilters.account);
+  if(listFilters.q) rows = rows.filter(t=>(t.name||"").toLowerCase().includes(listFilters.q.toLowerCase()));
+  rows.sort((a,b)=> a.dueDate<b.dueDate?-1:a.dueDate>b.dueDate?1:0);
+
+  const monthsInData = Array.from(new Set(state.transactions.map(t=>ymOf(t.dueDate)))).sort();
+
+  const filterBar = h("div.filterbar", {}, [
+    h("input", { type:"text", placeholder:t("common.search"), value:listFilters.q, oninput:(e)=>{ listFilters.q=e.target.value; renderTransactionsList(); } }),
+    selectEl([{value:"",label:t("list.statusAll")},{value:"planned",label:t("common.planned")},{value:"paid",label:t("common.paid")},{value:"overdue",label:t("common.overdue")}], listFilters.status, v=>{ listFilters.status=v; renderTransactionsList(); }),
+    selectEl([{value:"",label:t("list.categoryAll")}].concat(categoryOptions()), listFilters.category, v=>{ listFilters.category=v; renderTransactionsList(); }),
+    selectEl([{value:"",label:t("list.priorityAll")}].concat(priorityOptions(state)), listFilters.priority, v=>{ listFilters.priority=v; renderTransactionsList(); }),
+    selectEl([{value:"",label:t("list.accountAll")}].concat(accountOptions(state)), listFilters.account, v=>{ listFilters.account=v; renderTransactionsList(); }),
+    selectEl([{value:"",label:t("list.monthAll")}].concat(monthsInData.map(m=>({value:m,label:fmtMonthYear(m)}))), listFilters.month, v=>{ listFilters.month=v; renderTransactionsList(); }),
+    selectEl([{value:"",label:t("list.yearAll")}].concat(years.map(y=>({value:y,label:y}))), listFilters.year, v=>{ listFilters.year=v; renderTransactionsList(); })
+  ]);
+
+  const table = rows.length ? h("table.data-table", {}, [
+    h("thead", {}, [h("tr",{}, [t("common.date"),t("common.name"),t("common.category"),t("common.account"),t("common.amount"),t("common.status"),t("common.actions")].map(c=>h("th",{},[c])))]),
+    h("tbody", {}, rows.map(tx=>{
+      const acct = state.accounts.find(a=>a.id===tx.accountId);
+      const status = deriveStatus(tx);
+      return h("tr", {}, [
+        h("td", {}, [fmtDate(tx.dueDate)]),
+        h("td", {}, [tx.name]),
+        h("td", {}, [h("span.badge.badge-"+tx.category,{},[t("cat."+tx.category)])]),
+        h("td", {}, [acct?acct.name:"—"]),
+        h("td.num", { style: tx.category==="income"?"color:var(--good);":"" }, [fmtMoney(tx.amount)]),
+        h("td", {}, [h("span.badge.badge-"+status,{},[t("common."+status)])]),
+        h("td", {}, [h("div.row-actions", {}, [
+          status==="paid"
+            ? h("button.btn.btn-sm.btn-ghost", { onclick:()=>{ Store.mutate(s=>updateOccurrence(s,tx.id,{status:"planned"})); renderTransactionsList(); } }, ["↺"])
+            : h("button.btn.btn-sm.btn-ghost", { onclick:()=>{ Store.mutate(s=>updateOccurrence(s,tx.id,{status:"paid"})); renderTransactionsList(); } }, ["✓"]),
+          h("button.btn.btn-sm.btn-ghost", { onclick:()=>openTransactionModal(tx,{onSaved:renderTransactionsList}) }, ["✎"]),
+          h("button.btn.btn-sm.btn-ghost", { onclick:()=>{
+              if(tx.recurrence.frequency!=="oneTime"){ openTransactionModal(tx,{onSaved:renderTransactionsList}); }
+              else confirmDialog(t("tx.confirmDeleteOne"), ()=>{ Store.mutate(s=>deleteOccurrence(s,tx.id)); renderTransactionsList(); });
+            } }, ["🗑"])
+        ])])
+      ]);
+    }))
+  ]) : h("div.empty-state", {}, [ h("div.big",{},["📄"]), h("p",{},[t("list.noResults")]) ]);
+
+  mountContent(h("div", {}, [
+    h("div.toolbar", {}, [ h("h2",{},[t("list.title")]), h("div.spacer"), h("button.btn.btn-primary", { onclick:()=>openTransactionModal(null,{onSaved:renderTransactionsList}) }, ["+ "+t("list.addNew")]) ]),
+    filterBar,
+    h("div.card", {}, [table])
+  ]));
+}
+ROUTE_HANDLERS.transactions = renderTransactionsList;
+function openTransactionModalWrapper(){ openTransactionModal(null, { onSaved: ()=>{ Store.get() && refreshShellChrome(); if(Router._current && ROUTE_HANDLERS[Router._current]) ROUTE_HANDLERS[Router._current](); } }); }
+
+/* ===== SECTION: SETTINGS VIEW ===== */
+let settingsTab = "general";
+function renderSettings(params, query){
+  const state = Store.get();
+  if(query && query.tab) settingsTab = query.tab;
+  window.__rerouteRefresh = renderSettings;
+
+  function setSetting(patch){ Store.mutate(s=>Object.assign(s.settings, patch)); renderSettings(); }
+
+  const tabs = ["general","categories","data","license"];
+  const tabBar = h("div.toolbar", {}, tabs.map(tab=>
+    h("button.btn"+(settingsTab===tab?".btn-primary":".btn-ghost"), { onclick:()=>{ settingsTab=tab; renderSettings(); } }, [t("settings.tab"+tab.charAt(0).toUpperCase()+tab.slice(1))])
+  ));
+
+  let panel;
+  if(settingsTab==="general"){
+    panel = h("div.card-grid", {}, [
+      h("div.card", {}, [
+        h("h3",{},[t("settings.language")]),
+        selectEl(LANGS.map(l=>({value:l,label:l.toUpperCase()})), state.settings.language, v=>setSetting({language:v}))
+      ]),
+      h("div.card", {}, [
+        h("h3",{},[t("settings.theme")]),
+        selectEl([{value:"light",label:t("settings.themeLight")},{value:"dark",label:t("settings.themeDark")}], state.settings.theme, v=>{ setSetting({theme:v}); applyTheme(); })
+      ]),
+      h("div.card", {}, [
+        h("h3",{},[t("settings.currencySymbol")]),
+        h("input", { type:"text", value:state.settings.currencySymbol, style:"max-width:80px;", oninput:(e)=>setSetting({currencySymbol:e.target.value||"$"}) }),
+        h("h3", { style:"margin-top:14px;" }, [t("settings.currencyPosition")]),
+        selectEl([{value:"before",label:t("settings.positionBefore")},{value:"after",label:t("settings.positionAfter")}], state.settings.currencyPosition, v=>setSetting({currencyPosition:v}))
+      ]),
+      h("div.card", {}, [
+        h("h3",{},[t("settings.weekStart")]),
+        selectEl([{value:"0",label:t("settings.sunday")},{value:"1",label:t("settings.monday")}], String(state.settings.weekStart), v=>setSetting({weekStart:Number(v)}))
+      ]),
+      h("div.card", {}, [
+        h("h3",{},[t("settings.budgetingStrategy")]),
+        selectEl([{value:"carriedOver",label:t("settings.strategyCarried")},{value:"zeroBased",label:t("settings.strategyZero")}], state.settings.budgetingStrategy, v=>setSetting({budgetingStrategy:v}))
+      ])
+    ]);
+  } else if(settingsTab==="categories"){
+    function nameEditor(listPath, list, onChange){
+      let draft = "";
+      const wrap = h("div", {}, [
+        h("ul", { style:"list-style:none;margin:0;padding:0;" }, list.map((n,i)=> h("li", { style:"display:flex;align-items:center;gap:6px;padding:3px 0;" }, [
+          h("span", { style:"flex:1;" }, [n]),
+          h("button.btn.btn-sm.btn-ghost", { onclick:()=>{ list.splice(i,1); onChange(); } }, ["✕"])
+        ]))),
+        h("div", { style:"display:flex;gap:6px;margin-top:6px;" }, [
+          h("input", { type:"text", placeholder:t("settings.addName"), oninput:(e)=>{ draft=e.target.value; } }),
+          h("button.btn.btn-sm", { onclick:(e)=>{ const inp=e.target.previousSibling; const v=(inp.value||"").trim(); if(v){ list.push(v); inp.value=""; onChange(); } } }, ["+"])
+        ])
+      ]);
+      return wrap;
+    }
+    panel = h("div", {}, [
+      h("div.card-grid", {}, CATEGORY_KEYS.map(cat=> h("div.card", {}, [
+        h("h3", {}, [t("cat."+cat)]),
+        nameEditor(cat, state.settings.categoryNames[cat], ()=>{ Store.mutate(s=>{}); renderSettings(); })
+      ]))),
+      h("div.card", {}, [
+        h("h3", {}, [t("settings.priorityNamesTitle")]),
+        h("div.card-grid", {}, state.settings.priorityNames.map((name,i)=> h("div.field", {}, [
+          h("label", {}, ["P"+(i+1)]),
+          h("input", { type:"text", value:name, oninput:(e)=>{ state.settings.priorityNames[i]=e.target.value; Store.mutate(s=>{}); } })
+        ])))
+      ])
+    ]);
+  } else if(settingsTab==="data"){
+    panel = renderBackupPanel(state);
+  } else if(settingsTab==="license"){
+    panel = renderLicensePanel(state);
+  }
+
+  mountContent(h("div", {}, [ h("h2",{},[t("settings.title")]), tabBar, panel ]));
+}
+ROUTE_HANDLERS.settings = renderSettings;
+function renderBackupPanel(state){
+  const bytes = DataLayer.sizeEstimateBytes(state);
+  const kb = (bytes/1024).toFixed(1);
+  return h("div.card", {}, [ h("h3",{},[t("settings.storageUsed")]), h("p", {}, [kb+" KB"]) ]);
+}
+function renderLicensePanel(state){
+  return h("div.card", {}, [ h("h3",{},[t("settings.tabLicense")]), h("p",{},[t("common.noData")]) ]);
+}
+
+/* ===== SECTION: CALENDAR VIEW ===== */
+let calMonth = todayISO().slice(0,7);
+let calShowRecurring = true, calShowVariable = true;
+let longPressTimer = null;
+
+function txMatchesCalFilter(tx){
+  const isRecurring = tx.recurrence.frequency !== "oneTime";
+  return (isRecurring && calShowRecurring) || (!isRecurring && calShowVariable);
+}
+
+function renderCalendar(params){
+  if(params && params[0] && /^\d{4}-\d{2}$/.test(params[0])) calMonth = params[0];
+  window.__rerouteRefresh = renderCalendar;
+  const state = Store.get();
+  const [y,m] = calMonth.split("-").map(Number);
+  const first = new Date(y, m-1, 1);
+  const startOffset = (first.getDay() - state.settings.weekStart + 7) % 7;
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const prevMonthDays = new Date(y, m-1, 0).getDate();
+
+  const cells = []; // {iso, inMonth}
+  for(let i=startOffset;i>0;i--) cells.push({ iso: addDays(calMonth+"-01", -i), inMonth:false });
+  for(let d=1; d<=daysInMonth; d++) cells.push({ iso: calMonth+"-"+String(d).padStart(2,"0"), inMonth:true });
+  while(cells.length % 7 !== 0) cells.push({ iso: addDays(cells[cells.length-1].iso,1), inMonth:false });
+
+  const txByDay = {};
+  state.transactions.filter(txMatchesCalFilter).forEach(tx=>{ (txByDay[tx.dueDate]=txByDay[tx.dueDate]||[]).push(tx); });
+
+  const dowLabels = { en:["Sun","Mon","Tue","Wed","Thu","Fri","Sat"], fr:["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"],
+    es:["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"], de:["So","Mo","Di","Mi","Do","Fr","Sa"] };
+  const labelsRaw = dowLabels[state.settings.language] || dowLabels.en;
+  const dowOrder = [0,1,2,3,4,5,6].map(i=>(i+state.settings.weekStart)%7);
+
+  function dayChip(tx){
+    const status = deriveStatus(tx);
+    const chip = h("div.cal-chip.badge-"+tx.category+(status==="overdue"?".overdue":"")+(status==="paid"?".paid":""), {
+      draggable:"true",
+      title: tx.name+" — "+fmtMoney(tx.amount),
+      onclick:(e)=>{ e.stopPropagation(); quickTransactionPopup(tx); },
+      ondragstart:(e)=>{ e.dataTransfer.setData("text/plain", tx.id); }
+    }, [tx.name]);
+    return chip;
+  }
+
+  function dayCell(cellInfo){
+    const dayTx = (txByDay[cellInfo.iso]||[]).sort((a,b)=>b.amount-a.amount);
+    const shown = dayTx.slice(0,3);
+    const extra = dayTx.length - shown.length;
+    const isToday = cellInfo.iso===todayISO();
+    const cell = h("div.cal-day"+(cellInfo.inMonth?"":".other-month")+(isToday?".today":""), {
+      ondblclick:()=> openTransactionModal(null, { presetDate:cellInfo.iso, onSaved:refreshCurrentRoute }),
+      ondragover:(e)=>{ e.preventDefault(); cell.classList.add("drag-over"); },
+      ondragleave:()=>{ cell.classList.remove("drag-over"); },
+      ondrop:(e)=>{ e.preventDefault(); cell.classList.remove("drag-over"); const id=e.dataTransfer.getData("text/plain");
+        if(id){ Store.mutate(s=>updateOccurrence(s, id, { dueDate: cellInfo.iso })); refreshCurrentRoute(); } },
+      onclick:()=>{ if(window.innerWidth<=860) openDaySlideIn(cellInfo.iso, dayTx); },
+      ontouchstart:()=>{ longPressTimer = setTimeout(()=> openTransactionModal(null,{presetDate:cellInfo.iso,onSaved:refreshCurrentRoute}), 550); },
+      ontouchend:()=>{ clearTimeout(longPressTimer); },
+      ontouchmove:()=>{ clearTimeout(longPressTimer); }
+    }, [
+      h("div.cal-daynum", {}, [String(Number(cellInfo.iso.slice(8,10)))]),
+      ...shown.map(dayChip),
+      extra>0 ? h("div.cal-more", {}, [t("cal.moreCount",{n:extra})]) : null
+    ]);
+    return cell;
+  }
+
+  // weekly summary strip: one row per grid week
+  const weekRows = [];
+  let running = 0;
+  for(let i=0;i<cells.length;i+=7){
+    const weekCells = cells.slice(i,i+7);
+    const weekTotal = weekCells.reduce((sum,c)=>{
+      const items = txByDay[c.iso]||[];
+      return sum + items.filter(tx=>tx.category!=="income").reduce((s2,tx)=>s2+tx.amount,0);
+    },0);
+    running += weekTotal;
+    weekRows.push({ start:weekCells[0].iso, end:weekCells[6].iso, total:weekTotal, running });
+  }
+
+  // Weekly summary: one line per grid week with totals due + a running cumulative total
+  const weekSummaryCard = h("div.card", {}, [
+    h("h3",{},[t("cal.weekTotal")+" / "+t("cal.cumulative")]),
+    h("table.data-table", {}, [
+      h("thead",{},[h("tr",{},[t("common.from"),t("common.to"),t("cal.weekTotal"),t("cal.cumulative")].map(c=>h("th",{},[c])))]),
+      h("tbody",{}, weekRows.map(w=> h("tr",{},[
+        h("td",{},[fmtDate(w.start,{month:"short",day:"numeric"})]),
+        h("td",{},[fmtDate(w.end,{month:"short",day:"numeric"})]),
+        h("td.num",{},[fmtMoney(w.total)]),
+        h("td.num",{},[fmtMoney(w.running)])
+      ])))
+    ])
+  ]);
+
+  const grid = h("div.cal-grid", {}, [
+    ...dowOrder.map(i=>h("div.cal-dow", {}, [labelsRaw[i]])),
+    ...cells.map(dayCell)
+  ]);
+
+  const toolbar = h("div.cal-toolbar", {}, [
+    h("button.btn.btn-sm", { onclick:()=>Router.go("calendar/"+addMonths(calMonth+"-01",-1).slice(0,7)) }, ["‹"]),
+    h("h2", {}, [fmtMonthYear(calMonth)]),
+    h("button.btn.btn-sm", { onclick:()=>Router.go("calendar/"+addMonths(calMonth+"-01",1).slice(0,7)) }, ["›"]),
+    h("button.btn.btn-sm", { onclick:()=>Router.go("calendar/"+todayISO().slice(0,7)) }, [t("common.today")]),
+    h("div.cal-toggles", {}, [
+      h("label",{},[h("input",{type:"checkbox",checked:calShowRecurring,onchange:(e)=>{ calShowRecurring=e.target.checked; renderCalendar(); }}), t("cal.showRecurring")]),
+      h("label",{},[h("input",{type:"checkbox",checked:calShowVariable,onchange:(e)=>{ calShowVariable=e.target.checked; renderCalendar(); }}), t("cal.showVariable")])
+    ]),
+    h("button.btn.btn-primary.btn-sm", { onclick:()=>openTransactionModal(null,{onSaved:refreshCurrentRoute}) }, ["+ "+t("common.add")])
+  ]);
+
+  mountContent(h("div", {}, [ toolbar, grid, weekSummaryCard ]));
+}
+ROUTE_HANDLERS.calendar = renderCalendar;
+
+function openDaySlideIn(iso, dayTx){
+  const backdrop = h("div.cal-slidein-backdrop", { onclick:()=>{ backdrop.remove(); panel.remove(); } });
+  const panel = h("div.cal-slidein", {}, [
+    h("h3", {}, [fmtDate(iso, {weekday:"long",month:"long",day:"numeric"})]),
+    dayTx.length ? h("div", {}, dayTx.map(tx=> h("div.card", { style:"padding:10px;margin-bottom:8px;cursor:pointer;", onclick:()=>{ quickTransactionPopup(tx); } }, [
+      h("strong",{},[tx.name]), h("div.num",{},[fmtMoney(tx.amount)])
+    ]))) : h("p", {}, [t("cal.noneToday")]),
+    h("button.btn.btn-primary", { style:"width:100%;margin-top:10px;", onclick:()=>{ backdrop.remove(); panel.remove(); openTransactionModal(null,{presetDate:iso,onSaved:refreshCurrentRoute}); } }, ["+ "+t("cal.dayPanelAdd")])
+  ]);
+  document.body.appendChild(backdrop);
+  document.body.appendChild(panel);
+}
 
 /* ===== SECTION: SECTION_INSERT_POINT ===== */
 window.__COFFER_BOOT_PLACEHOLDER__ = true;

@@ -616,6 +616,27 @@ I18N.es.cal = { title:"Calendario", showRecurring:"Recurrentes", showVariable:"V
 I18N.de.cal = { title:"Kalender", showRecurring:"Wiederkehrend", showVariable:"Variabel", weekTotal:"Fällig diese Woche", cumulative:"Laufende Summe",
   moreCount:"+{n} weitere", dayPanelAdd:"Für diesen Tag hinzufügen", noneToday:"An diesem Tag steht nichts an." };
 
+I18N.en.insights = {
+  monthlyTitle:"Monthly Insights", yearlyTitle:"Yearly Overview", rollover:"Rollover from previous month",
+  goal:"Monthly goal (optional)", expectedVsPaid:"Expected vs. paid", expected:"Expected", noItems:"No transactions in this category this month.",
+  yearPlannedVsPaid:"Planned vs. paid this year", monthlyTrend:"Monthly trend", overBudget:"Over goal", underBudget:"Under goal", onGoal:"On goal"
+};
+I18N.fr.insights = {
+  monthlyTitle:"Aperçu mensuel", yearlyTitle:"Bilan annuel", rollover:"Report du mois précédent",
+  goal:"Objectif mensuel (facultatif)", expectedVsPaid:"Prévu vs payé", expected:"Prévu", noItems:"Aucune transaction dans cette catégorie ce mois-ci.",
+  yearPlannedVsPaid:"Prévu vs payé cette année", monthlyTrend:"Tendance mensuelle", overBudget:"Au-dessus de l'objectif", underBudget:"Sous l'objectif", onGoal:"Dans l'objectif"
+};
+I18N.es.insights = {
+  monthlyTitle:"Resumen mensual", yearlyTitle:"Resumen anual", rollover:"Remanente del mes anterior",
+  goal:"Objetivo mensual (opcional)", expectedVsPaid:"Previsto vs pagado", expected:"Previsto", noItems:"No hay transacciones en esta categoría este mes.",
+  yearPlannedVsPaid:"Previsto vs pagado este año", monthlyTrend:"Tendencia mensual", overBudget:"Por encima del objetivo", underBudget:"Por debajo del objetivo", onGoal:"En el objetivo"
+};
+I18N.de.insights = {
+  monthlyTitle:"Monatsübersicht", yearlyTitle:"Jahresübersicht", rollover:"Übertrag vom Vormonat",
+  goal:"Monatsziel (optional)", expectedVsPaid:"Geplant vs. bezahlt", expected:"Geplant", noItems:"Keine Transaktionen in dieser Kategorie diesen Monat.",
+  yearPlannedVsPaid:"Geplant vs. bezahlt in diesem Jahr", monthlyTrend:"Monatlicher Trend", overBudget:"Über Ziel", underBudget:"Unter Ziel", onGoal:"Im Ziel"
+};
+
 function t(key, params){
   const lang = (Store.get().settings.language) || "en";
   const [group, name] = key.split(".");
@@ -1720,6 +1741,200 @@ function openDaySlideIn(iso, dayTx){
   document.body.appendChild(backdrop);
   document.body.appendChild(panel);
 }
+
+/* ===== SECTION: CHARTS (hand-rolled SVG; no chart library) =====
+   Every chart here is meant to be paired with a data table by the caller —
+   these functions only draw the picture. */
+const CHART_PALETTE = ["#0F5257","#C1622D","#C98A2C","#4B7B4E","#6B5CA5","#B23A3A","#3B7A9E","#8A8377"];
+function svgEl(tag, attrs){
+  const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  Object.keys(attrs||{}).forEach(k=> el.setAttribute(k, attrs[k]));
+  return el;
+}
+function donutChart(segments, opts){
+  opts = opts||{};
+  const size = opts.size||150, thickness = opts.thickness||20;
+  const radius = (size-thickness)/2;
+  const circumference = 2*Math.PI*radius;
+  const total = segments.reduce((s,x)=>s+Math.max(0,x.value),0) || 1;
+  const svg = svgEl("svg", { width:size, height:size, viewBox:`0 0 ${size} ${size}`, role:"img", "aria-label":opts.ariaLabel||"chart" });
+  svg.appendChild(svgEl("circle", { cx:size/2, cy:size/2, r:radius, fill:"none", stroke:"var(--line)", "stroke-width":thickness }));
+  let cumulative = 0;
+  segments.forEach((seg,i)=>{
+    if(seg.value<=0) return;
+    const frac = seg.value/total;
+    const dash = frac*circumference;
+    const circle = svgEl("circle", {
+      cx:size/2, cy:size/2, r:radius, fill:"none", stroke: seg.color||CHART_PALETTE[i%CHART_PALETTE.length],
+      "stroke-width":thickness, "stroke-dasharray": `${dash} ${circumference-dash}`,
+      "stroke-dashoffset": -(cumulative/total)*circumference, transform:`rotate(-90 ${size/2} ${size/2})`,
+      "stroke-linecap":"butt"
+    });
+    svg.appendChild(circle);
+    cumulative += seg.value;
+  });
+  if(opts.centerLabel){
+    const text = svgEl("text", { x:size/2, y:size/2, "text-anchor":"middle", "dominant-baseline":"middle", "font-size":size*0.13, fill:"var(--ink)", "font-family":"var(--font-serif)", "font-weight":"700" });
+    text.textContent = opts.centerLabel;
+    svg.appendChild(text);
+  }
+  return svg;
+}
+function chartLegend(segments){
+  return h("div.chart-legend", {}, segments.map((seg,i)=> h("div.li", {}, [
+    h("span.swatch", { style:"background:"+(seg.color||CHART_PALETTE[i%CHART_PALETTE.length]) }),
+    h("span", {}, [seg.label+" — "+fmtMoney(seg.value)])
+  ])));
+}
+function barChart(bars, opts){
+  opts = opts||{};
+  const w = opts.width||480, h_ = opts.height||180, pad = 26;
+  const max = Math.max(1, ...bars.map(b=>b.value));
+  const bw = (w-pad*2)/bars.length;
+  const svg = svgEl("svg", { width:"100%", height:h_, viewBox:`0 0 ${w} ${h_}`, preserveAspectRatio:"xMinYMid meet" });
+  svg.appendChild(svgEl("line", { x1:pad, y1:h_-pad, x2:w-4, y2:h_-pad, stroke:"var(--line-strong)" }));
+  bars.forEach((b,i)=>{
+    const bh = ((h_-pad*2) * (b.value/max));
+    const x = pad + i*bw + bw*0.15;
+    const barW = bw*0.7;
+    const y = h_-pad-bh;
+    svg.appendChild(svgEl("rect", { x, y, width:Math.max(1,barW), height:Math.max(0,bh), fill: b.color||"var(--pine)", rx:2 }));
+    const label = svgEl("text", { x:x+barW/2, y:h_-pad+13, "text-anchor":"middle", "font-size":9, fill:"var(--ink-faint)" });
+    label.textContent = b.label;
+    svg.appendChild(label);
+  });
+  return svg;
+}
+function lineChart(points, opts){
+  opts = opts||{};
+  const w = opts.width||480, h_ = opts.height||160, pad = 28;
+  const vals = points.map(p=>p.y);
+  const max = Math.max(...vals, 0), min = Math.min(...vals, 0);
+  const range = (max-min)||1;
+  const stepX = points.length>1 ? (w-pad*2)/(points.length-1) : 0;
+  const svg = svgEl("svg", { width:"100%", height:h_, viewBox:`0 0 ${w} ${h_}`, preserveAspectRatio:"xMinYMid meet" });
+  const zeroY = h_-pad-((0-min)/range)*(h_-pad*2);
+  svg.appendChild(svgEl("line", { x1:pad, y1:zeroY, x2:w-4, y2:zeroY, stroke:"var(--line-strong)", "stroke-dasharray":"3 3" }));
+  const coords = points.map((p,i)=>[pad+i*stepX, h_-pad-((p.y-min)/range)*(h_-pad*2)]);
+  const path = coords.map((c,i)=> (i===0?"M":"L")+c[0].toFixed(1)+","+c[1].toFixed(1)).join(" ");
+  svg.appendChild(svgEl("path", { d:path, fill:"none", stroke: opts.color||"var(--pine)", "stroke-width":2.5 }));
+  coords.forEach(c=> svg.appendChild(svgEl("circle", { cx:c[0], cy:c[1], r:3, fill: opts.color||"var(--pine)" })));
+  return svg;
+}
+function chartCard(title, chartNode, legendOrTableNode, help){
+  return h("div.card.chart-card", {}, [
+    h("h3", {}, [title, help?h("span.help-icon",{title:help},["?"]):null]),
+    h("div.chart-wrap", {}, [ chartNode, legendOrTableNode ])
+  ]);
+}
+
+/* ===== SECTION: MONTHLY INSIGHTS ===== */
+function monthBudgetRecord(state, ym){
+  const mb = state.settings.monthlyBudgets = state.settings.monthlyBudgets || {};
+  return mb[ym] = mb[ym] || { rolloverIn:0, categoryGoals:{} };
+}
+let insightsMonth = todayISO().slice(0,7);
+function renderMonthlyInsights(params){
+  if(params && params[0] && /^\d{4}-\d{2}$/.test(params[0])) insightsMonth = params[0];
+  window.__rerouteRefresh = renderMonthlyInsights;
+  const state = Store.get();
+  const rec = monthBudgetRecord(state, insightsMonth);
+  const monthTx = state.transactions.filter(tx=>ymOf(tx.dueDate)===insightsMonth);
+
+  const picker = h("div.toolbar", {}, [
+    h("button.btn.btn-sm", { onclick:()=>Router.go("insights-monthly/"+addMonths(insightsMonth+"-01",-1).slice(0,7)) }, ["‹"]),
+    h("h2",{},[fmtMonthYear(insightsMonth)]),
+    h("button.btn.btn-sm", { onclick:()=>Router.go("insights-monthly/"+addMonths(insightsMonth+"-01",1).slice(0,7)) }, ["›"]),
+    h("div.spacer"),
+    h("div.field", { style:"margin:0;min-width:200px;" }, [
+      h("label",{},[t("insights.rollover")]),
+      h("input", { type:"number", step:"0.01", value:rec.rolloverIn, oninput:(e)=>{ rec.rolloverIn=parseFloat(e.target.value)||0; Store.mutate(s=>{}); renderStatusBarInline(); } })
+    ])
+  ]);
+
+  const cards = CATEGORY_KEYS.map(cat=>{
+    const items = monthTx.filter(tx=>tx.category===cat);
+    const byName = {};
+    items.forEach(tx=>{ byName[tx.name]=(byName[tx.name]||0)+tx.amount; });
+    const segments = Object.keys(byName).map((name,i)=>({ label:name, value:byName[name], color:CHART_PALETTE[i%CHART_PALETTE.length] }));
+    const totalExpected = items.reduce((s,tx)=>s+tx.amount,0);
+    const totalPaid = items.filter(tx=>tx.status==="paid").reduce((s,tx)=>s+tx.amount,0);
+    const goal = rec.categoryGoals[cat]||0;
+    let goalNote = null;
+    if(goal>0){
+      const diff = totalPaid - goal;
+      goalNote = h("p", { style:"font-size:12px;color:"+(diff>0?"var(--bad)":"var(--good)")+";" }, [
+        diff>0 ? t("insights.overBudget") : (diff<0 ? t("insights.underBudget") : t("insights.onGoal")), " ("+fmtMoney(Math.abs(diff))+")"
+      ]);
+    }
+    const table = items.length ? h("table.data-table", {}, [
+      h("thead",{},[h("tr",{},[t("common.name"),t("insights.expected"),t("common.status")].map(c=>h("th",{},[c])))]),
+      h("tbody",{}, items.map(tx=> h("tr",{},[ h("td",{},[tx.name]), h("td.num",{},[fmtMoney(tx.amount)]), h("td",{},[h("span.badge.badge-"+deriveStatus(tx),{},[t("common."+deriveStatus(tx))])]) ])))
+    ]) : h("p", { class:"hint" }, [t("insights.noItems")]);
+    return h("div.card.chart-card", {}, [
+      h("h3",{},[t("cat."+cat)]),
+      h("div.chart-wrap", {}, [
+        items.length ? donutChart(segments, { centerLabel: fmtMoney(totalExpected).replace(/\.00$/,""), ariaLabel:t("cat."+cat) }) : h("div", { style:"width:150px;height:150px;display:flex;align-items:center;justify-content:center;color:var(--ink-faint);font-size:12px;" }, [t("insights.noItems")]),
+        chartLegend(segments)
+      ]),
+      h("div.field", {}, [ h("label",{},[t("insights.goal")]), h("input", { type:"number", step:"0.01", value:goal, oninput:(e)=>{ rec.categoryGoals[cat]=parseFloat(e.target.value)||0; Store.mutate(s=>{}); renderMonthlyInsights(); } }) ]),
+      goalNote,
+      h("h4", { style:"font-size:12.5px;margin:10px 0 6px;color:var(--ink-soft);" }, [t("insights.expectedVsPaid")+" — "+fmtMoney(totalPaid)+" "+t("common.of")+" "+fmtMoney(totalExpected)]),
+      table
+    ]);
+  });
+
+  mountContent(h("div", {}, [ h("h2",{},[t("insights.monthlyTitle")]), picker, h("div.card-grid", {}, cards) ]));
+}
+ROUTE_HANDLERS["insights-monthly"] = renderMonthlyInsights;
+function renderStatusBarInline(){ refreshShellChrome(); }
+
+/* ===== SECTION: YEARLY OVERVIEW ===== */
+let overviewYear = String(yearOf(todayISO()));
+function renderYearlyOverview(params){
+  if(params && params[0] && /^\d{4}$/.test(params[0])) overviewYear = params[0];
+  window.__rerouteRefresh = renderYearlyOverview;
+  const state = Store.get();
+  const yearTx = state.transactions.filter(tx=>String(yearOf(tx.dueDate))===overviewYear);
+
+  const picker = h("div.toolbar", {}, [
+    h("button.btn.btn-sm", { onclick:()=>Router.go("insights-yearly/"+(Number(overviewYear)-1)) }, ["‹"]),
+    h("h2",{},[overviewYear]),
+    h("button.btn.btn-sm", { onclick:()=>Router.go("insights-yearly/"+(Number(overviewYear)+1)) }, ["›"])
+  ]);
+
+  const totalPlanned = yearTx.reduce((s,tx)=>s+tx.amount,0);
+  const totalPaid = yearTx.filter(tx=>tx.status==="paid").reduce((s,tx)=>s+tx.amount,0);
+  const summaryTable = h("table.data-table", {}, [
+    h("thead",{},[h("tr",{},[t("common.category"),t("common.planned"),t("common.paid")].map(c=>h("th",{},[c])))]),
+    h("tbody",{}, CATEGORY_KEYS.map(cat=>{
+      const items = yearTx.filter(tx=>tx.category===cat);
+      const planned = items.reduce((s,tx)=>s+tx.amount,0);
+      const paid = items.filter(tx=>tx.status==="paid").reduce((s,tx)=>s+tx.amount,0);
+      return h("tr",{},[ h("td",{},[t("cat."+cat)]), h("td.num",{},[fmtMoney(planned)]), h("td.num",{},[fmtMoney(paid)]) ]);
+    }).concat([ h("tr", { style:"font-weight:700;" }, [ h("td",{},[t("common.total")]), h("td.num",{},[fmtMoney(totalPlanned)]), h("td.num",{},[fmtMoney(totalPaid)]) ]) ]))
+  ]);
+
+  const monthLabels = Array.from({length:12},(_,i)=> new Intl.DateTimeFormat(localeTag(),{month:"short"}).format(new Date(2000,i,1)));
+  const trendCards = CATEGORY_KEYS.map(cat=>{
+    const monthly = Array.from({length:12},(_,i)=>{
+      const ym = overviewYear+"-"+String(i+1).padStart(2,"0");
+      return yearTx.filter(tx=>tx.category===cat && ymOf(tx.dueDate)===ym).reduce((s,tx)=>s+tx.amount,0);
+    });
+    const bars = monthly.map((v,i)=>({ label:monthLabels[i], value:v, color:"var(--pine)" }));
+    const table = h("table.data-table", { style:"font-size:11px;" }, [
+      h("tbody",{},[ h("tr",{}, monthLabels.map(m=>h("th",{},[m]))), h("tr",{}, monthly.map(v=>h("td.num",{},[fmtMoney(v)]))) ])
+    ]);
+    return h("div.card.chart-card", {}, [ h("h3",{},[t("cat."+cat)]), barChart(bars), table ]);
+  });
+
+  mountContent(h("div", {}, [ h("h2",{},[t("insights.yearlyTitle")]), picker,
+    h("div.card", {}, [ h("h3",{},[t("insights.yearPlannedVsPaid")]), summaryTable ]),
+    h("h3", { style:"margin:18px 0 8px;" }, [t("insights.monthlyTrend")]),
+    h("div.card-grid", {}, trendCards)
+  ]));
+}
+ROUTE_HANDLERS["insights-yearly"] = renderYearlyOverview;
 
 /* ===== SECTION: SECTION_INSERT_POINT ===== */
 window.__COFFER_BOOT_PLACEHOLDER__ = true;

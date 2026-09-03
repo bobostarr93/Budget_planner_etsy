@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<!--
+  Coffer — a local-first, offline-capable household budget tracker.
+
+  HOW TO RUN THIS APP
+  --------------------
+  There is nothing to install and nothing to build. Double-click this file
+  (or open it with File > Open in any modern browser) and it runs entirely
+  from disk. All data is stored in this browser's localStorage, on this
+  device, under the key "cofferapp.data.v1". Nothing is ever sent over the
+  network — this file makes zero outbound requests at runtime.
+
+  To move your data to another device, use Settings > Backup to export a
+  JSON file, then import it on the other device. On Chromium-based browsers
+  you can also point Coffer at a local folder (ideally one your OS already
+  cloud-syncs, e.g. Dropbox/Drive/OneDrive) and it will keep a backup file
+  there automatically.
+
+  This file is organized top to bottom as:
+    <style>  design tokens (light + dark) and all component CSS
+    <body>   a minimal static shell; everything else is rendered by JS
+    <script> app code, in banner-commented sections (search for "=====")
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Coffer — Budget Planner</title>
+<style>
+/* ============================================================
+   DESIGN TOKENS
+   ============================================================ */
+:root{
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-serif: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif;
+
+  /* light palette */
+  --paper: #FAF7F2;
+  --paper-raised: #FFFFFF;
+  --ink: #1C1B19;
+  --ink-soft: #55504A;
+  --ink-faint: #8A8377;
+  --line: #E3DDD1;
+  --line-strong: #C9C0AE;
+  --pine: #0F5257;
+  --pine-strong: #0A3A3E;
+  --pine-tint: #E4EEEE;
+  --rust: #C1622D;
+  --rust-tint: #FBEAE0;
+  --gold: #C98A2C;
+  --gold-tint: #FBF0DC;
+  --good: #4B7B4E;
+  --good-tint: #E7F0E6;
+  --bad: #B23A3A;
+  --bad-tint: #FBE7E5;
+  --shadow: 0 1px 2px rgba(28,27,25,.06), 0 4px 14px rgba(28,27,25,.06);
+  --radius: 6px;
+  --focus: 0 0 0 3px rgba(15,82,87,.35);
+}
+:root[data-theme="dark"]{
+  --paper: #16181A;
+  --paper-raised: #1E2124;
+  --ink: #F1EEE7;
+  --ink-soft: #C7C0B4;
+  --ink-faint: #8B8578;
+  --line: #33363A;
+  --line-strong: #454A4F;
+  --pine: #4FB6BB;
+  --pine-strong: #7ED4D8;
+  --pine-tint: #1B2E30;
+  --rust: #E08A54;
+  --rust-tint: #382419;
+  --gold: #E0AA55;
+  --gold-tint: #382c15;
+  --good: #7FBE82;
+  --good-tint: #1c2b1c;
+  --bad: #E08080;
+  --bad-tint: #331c1c;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.35);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]):not([data-theme="dark"]){
+    --paper: #16181A; --paper-raised: #1E2124; --ink: #F1EEE7; --ink-soft: #C7C0B4;
+    --ink-faint: #8B8578; --line: #33363A; --line-strong: #454A4F;
+    --pine: #4FB6BB; --pine-strong: #7ED4D8; --pine-tint: #1B2E30;
+    --rust: #E08A54; --rust-tint: #382419; --gold: #E0AA55; --gold-tint: #382c15;
+    --good: #7FBE82; --good-tint: #1c2b1c; --bad: #E08080; --bad-tint: #331c1c;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.35);
+  }
+}
+
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+*,*::before,*::after{ box-sizing: border-box; }
+html,body{ height: 100%; }
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--font-ui); font-size:15px; line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+}
+img{ max-width:100%; }
+button,input,select,textarea{ font-family:inherit; font-size:inherit; color:inherit; }
+button{ cursor:pointer; }
+a{ color:var(--pine); }
+h1,h2,h3,h4{ font-family:var(--font-serif); font-weight:600; margin:0 0 .4em; letter-spacing:.2px; }
+table{ border-collapse:collapse; width:100%; }
+.num{ font-family:var(--font-serif); font-variant-numeric:tabular-nums; }
+[hidden]{ display:none !important; }
+:focus-visible{ outline:none; box-shadow:var(--focus); border-radius:4px; }
+
+/* ============================================================
+   LAYOUT SHELL
+   ============================================================ */
+#app{ display:flex; min-height:100vh; }
+
+.sidebar{
+  width:250px; flex:0 0 auto; background:var(--paper-raised);
+  border-right:1px solid var(--line); display:flex; flex-direction:column;
+  position:sticky; top:0; height:100vh; overflow-y:auto; z-index:20;
+  transition: width .18s ease, transform .18s ease;
+}
+.sidebar.collapsed{ width:64px; }
+.sidebar-brand{
+  display:flex; align-items:center; gap:.6em; padding:16px 16px 12px;
+  border-bottom:1px solid var(--line); flex:0 0 auto;
+}
+.sidebar-brand .mark{
+  width:30px; height:30px; border-radius:7px; background:var(--pine); color:#fff;
+  display:flex; align-items:center; justify-content:center; font-family:var(--font-serif);
+  font-weight:700; flex:0 0 auto; font-size:15px;
+}
+.sidebar-brand .name{ font-family:var(--font-serif); font-weight:700; font-size:17px; white-space:nowrap; overflow:hidden; }
+.sidebar.collapsed .name, .sidebar.collapsed .mini-cal, .sidebar.collapsed .navgroup-label, .sidebar.collapsed .navlabel{ display:none; }
+.sidebar-toggle{
+  margin-left:auto; background:none; border:1px solid var(--line); border-radius:6px;
+  width:26px; height:26px; display:flex; align-items:center; justify-content:center; color:var(--ink-soft);
+}
+.mini-cal{ padding:12px 14px; border-bottom:1px solid var(--line); flex:0 0 auto; }
+.mini-cal .mc-head{ display:flex; align-items:center; justify-content:space-between; font-size:12.5px; font-weight:600; margin-bottom:6px; color:var(--ink-soft); }
+.mini-cal .mc-head button{ background:none; border:0; color:var(--ink-faint); padding:2px 4px; }
+.mini-cal table{ font-size:11px; }
+.mini-cal th{ color:var(--ink-faint); font-weight:500; padding:2px 0; }
+.mini-cal td{ text-align:center; padding:2px 0; border-radius:4px; cursor:pointer; color:var(--ink-soft); }
+.mini-cal td:hover{ background:var(--line); }
+.mini-cal td.today{ background:var(--pine); color:#fff; font-weight:700; }
+.mini-cal td.has-tx::after{ content:""; display:block; width:3px; height:3px; border-radius:50%; background:var(--rust); margin:1px auto 0; }
+.mini-cal td.other-month{ color:var(--ink-faint); opacity:.4; }
+
+.nav{ flex:1 1 auto; overflow-y:auto; padding:8px 8px 16px; }
+.navgroup{ margin-bottom:4px; }
+.navgroup-label{
+  font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-faint);
+  padding:12px 10px 4px; font-weight:700;
+}
+.navlink{
+  display:flex; align-items:center; gap:.65em; padding:8px 10px; border-radius:6px;
+  color:var(--ink-soft); text-decoration:none; font-size:13.6px; white-space:nowrap; overflow:hidden;
+}
+.navlink .ico{ flex:0 0 auto; width:17px; text-align:center; opacity:.85; }
+.navlink:hover{ background:var(--pine-tint); color:var(--ink); }
+.navlink.active{ background:var(--pine); color:#fff; }
+.sidebar.collapsed .navlink{ justify-content:center; padding:9px 0; }
+
+.main{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; }
+
+.statusbar{
+  display:flex; flex-wrap:wrap; gap:0; align-items:stretch; background:var(--paper-raised);
+  border-bottom:1px solid var(--line); position:sticky; top:0; z-index:15;
+}
+.statusbar .stat{ padding:10px 18px; border-right:1px solid var(--line); min-width:120px; }
+.statusbar .stat .lbl{ font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-faint); margin-bottom:2px; }
+.statusbar .stat .val{ font-family:var(--font-serif); font-size:17px; font-weight:700; }
+.statusbar .stat .val.bad{ color:var(--bad); }
+.statusbar .stat .val.good{ color:var(--good); }
+.statusbar-actions{ margin-left:auto; display:flex; align-items:center; gap:8px; padding:0 14px; }
+
+.topbar-mobile{ display:none; }
+
+.content{ flex:1 1 auto; padding:20px 24px 60px; max-width:1280px; width:100%; margin:0 auto; }
+
+/* ============================================================
+   COMPONENTS
+   ============================================================ */
+.btn{
+  display:inline-flex; align-items:center; gap:.5em; border:1px solid var(--line-strong);
+  background:var(--paper-raised); color:var(--ink); border-radius:var(--radius);
+  padding:8px 14px; font-size:13.5px; font-weight:600; line-height:1.2;
+}
+.btn:hover{ border-color:var(--pine); color:var(--pine); }
+.btn-primary{ background:var(--pine); border-color:var(--pine); color:#fff; }
+.btn-primary:hover{ background:var(--pine-strong); border-color:var(--pine-strong); color:#fff; }
+.btn-danger{ background:var(--paper-raised); border-color:var(--bad); color:var(--bad); }
+.btn-danger:hover{ background:var(--bad); color:#fff; }
+.btn-ghost{ background:none; border-color:transparent; }
+.btn-ghost:hover{ background:var(--line); border-color:transparent; color:var(--ink); }
+.btn-sm{ padding:5px 10px; font-size:12.5px; }
+.btn[disabled]{ opacity:.5; cursor:not-allowed; }
+.btn-icon{ padding:6px 8px; }
+
+.card{
+  background:var(--paper-raised); border:1px solid var(--line); border-radius:var(--radius);
+  padding:16px 18px; margin-bottom:16px; box-shadow: var(--shadow);
+}
+.card > h3{ font-size:15.5px; display:flex; align-items:center; gap:.5em; }
+.card-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; }
+
+.ledger-rule{ border:0; border-top:1px solid var(--line); margin:12px 0; }
+
+.field{ margin-bottom:12px; }
+.field label{ display:block; font-size:12px; font-weight:700; color:var(--ink-soft); margin-bottom:4px; text-transform:uppercase; letter-spacing:.03em; }
+.field .hint{ font-size:11.5px; color:var(--ink-faint); margin-top:3px; }
+.field input[type=text], .field input[type=number], .field input[type=date],
+.field input[type=password], .field select, .field textarea{
+  width:100%; padding:8px 10px; border:1px solid var(--line-strong); border-radius:6px;
+  background:var(--paper); color:var(--ink);
+}
+.field textarea{ resize:vertical; min-height:60px; }
+.field-row{ display:flex; gap:12px; }
+.field-row > .field{ flex:1 1 0; }
+.checkbox-field{ display:flex; align-items:center; gap:.5em; margin-bottom:12px; }
+.checkbox-field label{ font-size:13px; font-weight:600; text-transform:none; margin:0; }
+
+.help-icon{
+  display:inline-flex; align-items:center; justify-content:center; width:15px; height:15px;
+  border-radius:50%; border:1px solid var(--ink-faint); color:var(--ink-faint); font-size:10px;
+  font-weight:700; cursor:help; margin-left:4px; vertical-align:middle;
+}
+
+.badge{ display:inline-flex; align-items:center; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700; }
+.badge-income{ background:var(--good-tint); color:var(--good); }
+.badge-savings{ background:var(--pine-tint); color:var(--pine); }
+.badge-bills{ background:var(--gold-tint); color:var(--gold); }
+.badge-expenses{ background:var(--rust-tint); color:var(--rust); }
+.badge-debtPayments{ background:var(--bad-tint); color:var(--bad); }
+.badge-subscriptions{ background:var(--line); color:var(--ink-soft); }
+.badge-planned{ background:var(--line); color:var(--ink-soft); }
+.badge-paid{ background:var(--good-tint); color:var(--good); }
+.badge-overdue{ background:var(--bad-tint); color:var(--bad); }
+
+.toolbar{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:14px; }
+.toolbar .spacer{ flex:1 1 auto; }
+.filterbar{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+.filterbar select, .filterbar input{ padding:6px 9px; border:1px solid var(--line-strong); border-radius:6px; background:var(--paper-raised); font-size:12.5px; }
+
+.modal-overlay{
+  position:fixed; inset:0; background:rgba(20,18,15,.45); display:flex; align-items:flex-start;
+  justify-content:center; padding:5vh 16px; overflow-y:auto; z-index:100;
+}
+.modal{
+  background:var(--paper-raised); border-radius:8px; width:100%; max-width:560px;
+  box-shadow:0 20px 60px rgba(0,0,0,.3); border:1px solid var(--line);
+}
+.modal-head{ display:flex; align-items:center; padding:16px 20px; border-bottom:1px solid var(--line); }
+.modal-head h3{ margin:0; flex:1; }
+.modal-body{ padding:18px 20px; max-height:70vh; overflow-y:auto; }
+.modal-foot{ display:flex; gap:8px; flex-wrap:wrap; padding:14px 20px; border-top:1px solid var(--line); justify-content:flex-end; }
+.modal-close{ background:none; border:0; font-size:20px; color:var(--ink-faint); line-height:1; padding:4px 6px; }
+
+.toast-root{ position:fixed; bottom:18px; right:18px; z-index:200; display:flex; flex-direction:column; gap:8px; }
+.toast{ background:var(--ink); color:var(--paper); padding:10px 16px; border-radius:6px; font-size:13px; box-shadow:var(--shadow); max-width:320px; }
+:root[data-theme="dark"] .toast{ background:var(--paper-raised); border:1px solid var(--line-strong); color:var(--ink); }
+
+.empty-state{ text-align:center; padding:40px 20px; color:var(--ink-faint); }
+.empty-state .big{ font-size:34px; margin-bottom:8px; }
+
+.demo-banner{
+  background:var(--gold-tint); color:var(--gold); border-bottom:1px solid var(--line);
+  padding:8px 16px; font-size:12.5px; font-weight:600; text-align:center; display:flex;
+  align-items:center; justify-content:center; gap:10px; flex-wrap:wrap;
+}
+.demo-banner button{ text-decoration:underline; background:none; border:0; color:inherit; font-weight:700; }
+
+table.data-table{ font-size:13px; }
+table.data-table th{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-faint); padding:6px 8px; border-bottom:1px solid var(--line-strong); }
+table.data-table td{ padding:7px 8px; border-bottom:1px solid var(--line); }
+table.data-table tr:hover td{ background:var(--pine-tint); }
+table.data-table .row-actions{ display:flex; gap:4px; opacity:.6; }
+table.data-table tr:hover .row-actions{ opacity:1; }
+
+.chart-card svg{ display:block; }
+.chart-wrap{ display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; }
+.chart-legend{ font-size:12.5px; }
+.chart-legend .li{ display:flex; align-items:center; gap:6px; padding:2px 0; }
+.chart-legend .swatch{ width:9px; height:9px; border-radius:2px; flex:0 0 auto; }
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 860px){
+  .sidebar{ position:fixed; left:0; top:0; bottom:0; transform:translateX(-100%); width:260px; box-shadow:0 0 0 9999px rgba(0,0,0,0); }
+  .sidebar.mobile-open{ transform:translateX(0); box-shadow:0 0 40px rgba(0,0,0,.35); }
+  .sidebar.collapsed{ width:260px; }
+  .sidebar.collapsed .name, .sidebar.collapsed .mini-cal, .sidebar.collapsed .navgroup-label, .sidebar.collapsed .navlabel{ display:block; }
+  .topbar-mobile{
+    display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--paper-raised);
+    border-bottom:1px solid var(--line); position:sticky; top:0; z-index:15;
+  }
+  .topbar-mobile .mark{ width:26px; height:26px; border-radius:6px; background:var(--pine); color:#fff; display:flex; align-items:center; justify-content:center; font-family:var(--font-serif); font-weight:700; }
+  .sidebar-toggle-mobile{ background:none; border:1px solid var(--line); border-radius:6px; width:32px; height:32px; }
+  .content{ padding:14px 12px 50px; }
+  .statusbar{ overflow-x:auto; }
+  .statusbar .stat{ min-width:auto; padding:8px 12px; }
+  .modal{ max-width:100%; }
+  .field-row{ flex-direction:column; gap:0; }
+}
+@media (min-width:861px){
+  .sidebar-backdrop{ display:none; }
+}
+.sidebar-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:19; }
+
+/* drag/drop + calendar specific, filled in later sections */
+</style>
+</head>
+<body>
+<div id="app" role="application" aria-label="Coffer budget planner"></div>
+<div class="toast-root" id="toastRoot"></div>
+
+<script>
+"use strict";
+/* global localStorage */
+
+/* ===== SECTION: CONSTANTS ===== */
+const APP_KEY = "cofferapp.data.v1";
+const SCHEMA_VERSION = 1;
+const CATEGORY_KEYS = ["income","savings","bills","expenses","debtPayments","subscriptions"];
+const ACCOUNT_TYPES = ["checking","savings","cash","creditCard"];
+const RECUR_FREQS = ["oneTime","daily","weekly","biweekly","monthly","every2months","quarterly","yearly"];
+const PRIORITY_COUNT = 5;
+const LANGS = ["en","fr","es","de"];
+
+/* ===== SECTION: UTILITIES ===== */
+function uid(prefix){ return (prefix||"id")+"_"+Math.random().toString(36).slice(2,10)+Date.now().toString(36); }
+function clamp(n,lo,hi){ return Math.min(hi,Math.max(lo,n)); }
+function deepClone(o){ return JSON.parse(JSON.stringify(o)); }
+function debounce(fn,ms){ let t=null; return function(...args){ clearTimeout(t); t=setTimeout(()=>fn.apply(this,args),ms); }; }
+function isoDate(d){ if(typeof d==="string") return d.slice(0,10); const p=n=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate()); }
+function todayISO(){ return isoDate(new Date()); }
+function addDays(iso,n){ const d=new Date(iso+"T00:00:00"); d.setDate(d.getDate()+n); return isoDate(d); }
+function addMonths(iso,n){ const d=new Date(iso+"T00:00:00"); const day=d.getDate(); d.setDate(1); d.setMonth(d.getMonth()+n); const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate(); d.setDate(Math.min(day,last)); return isoDate(d); }
+function addYears(iso,n){ return addMonths(iso,n*12); }
+function ymOf(iso){ return iso.slice(0,7); }
+function yearOf(iso){ return Number(iso.slice(0,4)); }
+function escapeHtml(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function daysBetween(a,b){ return Math.round((new Date(b+"T00:00:00")-new Date(a+"T00:00:00"))/86400000); }
+
+function fmtMoney(cents_or_num){
+  const s = Store.get().settings;
+  const n = Number(cents_or_num)||0;
+  try{
+    const parts = new Intl.NumberFormat(localeTag(), { minimumFractionDigits:2, maximumFractionDigits:2 }).formatToParts(Math.abs(n));
+    let numStr = parts.map(p=>p.value).join("");
+    const sign = n<0 ? "-" : "";
+    return s.currencyPosition==="before" ? sign+s.currencySymbol+numStr : sign+numStr+s.currencySymbol;
+  }catch(e){ return (n<0?"-":"")+s.currencySymbol+Math.abs(n).toFixed(2); }
+}
+function fmtDate(iso, opts){
+  if(!iso) return "";
+  try{ return new Intl.DateTimeFormat(localeTag(), opts||{month:"short",day:"numeric",year:"numeric"}).format(new Date(iso+"T00:00:00")); }
+  catch(e){ return iso; }
+}
+function fmtMonthYear(ym){
+  try{ return new Intl.DateTimeFormat(localeTag(), {month:"long",year:"numeric"}).format(new Date(ym+"-01T00:00:00")); }
+  catch(e){ return ym; }
+}
+function localeTag(){
+  const map = { en:"en-US", fr:"fr-FR", es:"es-ES", de:"de-DE" };
+  return map[Store.get().settings.language] || "en-US";
+}
+
+/* ===== SECTION: I18N ===== */
+const I18N = { en:{}, fr:{}, es:{}, de:{} };
+
+I18N.en.common = {
+  appName:"Coffer", save:"Save", saveAddAnother:"Save & Add Another", saveMarkPaid:"Save & Mark Paid",
+  cancel:"Cancel", delete:"Delete", edit:"Edit", close:"Close", add:"Add", confirm:"Confirm", yes:"Yes", no:"No",
+  search:"Search", filters:"Filters", all:"All", none:"None", loading:"Loading…", today:"Today",
+  thisWeek:"This week", thisMonth:"This month", thisYear:"This year", export:"Export", import:"Import",
+  download:"Download", upload:"Upload", warning:"Warning", error:"Error", success:"Success",
+  name:"Name", amount:"Amount", date:"Date", notes:"Notes", actions:"Actions", total:"Total",
+  balance:"Balance", projected:"Projected", overdue:"Overdue", planned:"Planned", paid:"Paid",
+  status:"Status", category:"Category", priority:"Priority", account:"Account", type:"Type",
+  recurrence:"Recurrence", frequency:"Frequency", endDate:"End date", oneTime:"One-time", daily:"Daily",
+  weekly:"Weekly", biweekly:"Every 2 weeks", monthly:"Monthly", every2months:"Every 2 months",
+  quarterly:"Quarterly", yearly:"Yearly", demo:"Demo", unlock:"Unlock", of:"of", from:"From", to:"To",
+  custom:"Custom", other:"Other", noData:"Nothing here yet.", getStarted:"Get started",
+  helpDismiss:"Don't show this again", learnMore:"Learn more", back:"Back", month:"Month", year:"Year",
+  clearAll:"Clear all data", areYouSure:"Are you sure?", cannotBeUndone:"This cannot be undone.",
+  approx:"approx."
+};
+I18N.fr.common = {
+  appName:"Coffer", save:"Enregistrer", saveAddAnother:"Enregistrer et ajouter", saveMarkPaid:"Enregistrer et marquer payé",
+  cancel:"Annuler", delete:"Supprimer", edit:"Modifier", close:"Fermer", add:"Ajouter", confirm:"Confirmer", yes:"Oui", no:"Non",
+  search:"Rechercher", filters:"Filtres", all:"Tout", none:"Aucun", loading:"Chargement…", today:"Aujourd'hui",
+  thisWeek:"Cette semaine", thisMonth:"Ce mois-ci", thisYear:"Cette année", export:"Exporter", import:"Importer",
+  download:"Télécharger", upload:"Charger", warning:"Avertissement", error:"Erreur", success:"Succès",
+  name:"Nom", amount:"Montant", date:"Date", notes:"Notes", actions:"Actions", total:"Total",
+  balance:"Solde", projected:"Projeté", overdue:"En retard", planned:"Prévu", paid:"Payé",
+  status:"Statut", category:"Catégorie", priority:"Priorité", account:"Compte", type:"Type",
+  recurrence:"Récurrence", frequency:"Fréquence", endDate:"Date de fin", oneTime:"Ponctuel", daily:"Quotidien",
+  weekly:"Hebdomadaire", biweekly:"Toutes les 2 semaines", monthly:"Mensuel", every2months:"Tous les 2 mois",
+  quarterly:"Trimestriel", yearly:"Annuel", demo:"Démo", unlock:"Débloquer", of:"de", from:"Du", to:"Au",
+  custom:"Personnalisé", other:"Autre", noData:"Rien ici pour l'instant.", getStarted:"Commencer",
+  helpDismiss:"Ne plus afficher", learnMore:"En savoir plus", back:"Retour", month:"Mois", year:"Année",
+  clearAll:"Effacer toutes les données", areYouSure:"Êtes-vous sûr ?", cannotBeUndone:"Action irréversible.",
+  approx:"env."
+};
+I18N.es.common = {
+  appName:"Coffer", save:"Guardar", saveAddAnother:"Guardar y añadir otro", saveMarkPaid:"Guardar y marcar pagado",
+  cancel:"Cancelar", delete:"Eliminar", edit:"Editar", close:"Cerrar", add:"Añadir", confirm:"Confirmar", yes:"Sí", no:"No",
+  search:"Buscar", filters:"Filtros", all:"Todo", none:"Ninguno", loading:"Cargando…", today:"Hoy",
+  thisWeek:"Esta semana", thisMonth:"Este mes", thisYear:"Este año", export:"Exportar", import:"Importar",
+  download:"Descargar", upload:"Subir", warning:"Advertencia", error:"Error", success:"Éxito",
+  name:"Nombre", amount:"Importe", date:"Fecha", notes:"Notas", actions:"Acciones", total:"Total",
+  balance:"Saldo", projected:"Proyectado", overdue:"Vencido", planned:"Previsto", paid:"Pagado",
+  status:"Estado", category:"Categoría", priority:"Prioridad", account:"Cuenta", type:"Tipo",
+  recurrence:"Recurrencia", frequency:"Frecuencia", endDate:"Fecha final", oneTime:"Único", daily:"Diario",
+  weekly:"Semanal", biweekly:"Cada 2 semanas", monthly:"Mensual", every2months:"Cada 2 meses",
+  quarterly:"Trimestral", yearly:"Anual", demo:"Demo", unlock:"Desbloquear", of:"de", from:"Desde", to:"Hasta",
+  custom:"Personalizado", other:"Otro", noData:"Aún no hay nada aquí.", getStarted:"Empezar",
+  helpDismiss:"No volver a mostrar", learnMore:"Saber más", back:"Atrás", month:"Mes", year:"Año",
+  clearAll:"Borrar todos los datos", areYouSure:"¿Estás seguro?", cannotBeUndone:"Esto no se puede deshacer.",
+  approx:"aprox."
+};
+I18N.de.common = {
+  appName:"Coffer", save:"Speichern", saveAddAnother:"Speichern & weiteren hinzufügen", saveMarkPaid:"Speichern & als bezahlt markieren",
+  cancel:"Abbrechen", delete:"Löschen", edit:"Bearbeiten", close:"Schließen", add:"Hinzufügen", confirm:"Bestätigen", yes:"Ja", no:"Nein",
+  search:"Suchen", filters:"Filter", all:"Alle", none:"Keine", loading:"Lädt…", today:"Heute",
+  thisWeek:"Diese Woche", thisMonth:"Diesen Monat", thisYear:"Dieses Jahr", export:"Exportieren", import:"Importieren",
+  download:"Herunterladen", upload:"Hochladen", warning:"Warnung", error:"Fehler", success:"Erfolg",
+  name:"Name", amount:"Betrag", date:"Datum", notes:"Notizen", actions:"Aktionen", total:"Gesamt",
+  balance:"Saldo", projected:"Prognostiziert", overdue:"Überfällig", planned:"Geplant", paid:"Bezahlt",
+  status:"Status", category:"Kategorie", priority:"Priorität", account:"Konto", type:"Typ",
+  recurrence:"Wiederholung", frequency:"Häufigkeit", endDate:"Enddatum", oneTime:"Einmalig", daily:"Täglich",
+  weekly:"Wöchentlich", biweekly:"Alle 2 Wochen", monthly:"Monatlich", every2months:"Alle 2 Monate",
+  quarterly:"Vierteljährlich", yearly:"Jährlich", demo:"Demo", unlock:"Freischalten", of:"von", from:"Von", to:"Bis",
+  custom:"Benutzerdefiniert", other:"Andere", noData:"Hier ist noch nichts.", getStarted:"Loslegen",
+  helpDismiss:"Nicht mehr anzeigen", learnMore:"Mehr erfahren", back:"Zurück", month:"Monat", year:"Jahr",
+  clearAll:"Alle Daten löschen", areYouSure:"Bist du sicher?", cannotBeUndone:"Dies kann nicht rückgängig gemacht werden.",
+  approx:"ca."
+};
+
+I18N.en.nav = { dashboard:"Dashboard", calendar:"Calendar", transactions:"Transactions", accounts:"Accounts & Cards",
+  insightsMonthly:"Monthly Insights", insightsYearly:"Yearly Overview", paycheck:"Paycheck View",
+  budget5030:"50/30/20 Budget", debt:"Debt Payoff", sinkingFunds:"Sinking Funds", netWorth:"Net Worth",
+  noSpend:"No-Spend Challenge", settings:"Settings", guide:"Quick Start Guide",
+  sectionOverview:"Overview", sectionPlanning:"Planning", sectionTools:"Tools", sectionSystem:"System" };
+I18N.fr.nav = { dashboard:"Tableau de bord", calendar:"Calendrier", transactions:"Transactions", accounts:"Comptes et cartes",
+  insightsMonthly:"Aperçu mensuel", insightsYearly:"Bilan annuel", paycheck:"Vue par paie",
+  budget5030:"Budget 50/30/20", debt:"Remboursement de dettes", sinkingFunds:"Cagnottes", netWorth:"Valeur nette",
+  noSpend:"Défi sans dépense", settings:"Paramètres", guide:"Guide de démarrage",
+  sectionOverview:"Vue d'ensemble", sectionPlanning:"Planification", sectionTools:"Outils", sectionSystem:"Système" };
+I18N.es.nav = { dashboard:"Panel", calendar:"Calendario", transactions:"Transacciones", accounts:"Cuentas y tarjetas",
+  insightsMonthly:"Resumen mensual", insightsYearly:"Resumen anual", paycheck:"Vista por nómina",
+  budget5030:"Presupuesto 50/30/20", debt:"Pago de deudas", sinkingFunds:"Fondos de ahorro", netWorth:"Patrimonio neto",
+  noSpend:"Reto sin gastar", settings:"Ajustes", guide:"Guía de inicio",
+  sectionOverview:"Resumen", sectionPlanning:"Planificación", sectionTools:"Herramientas", sectionSystem:"Sistema" };
+I18N.de.nav = { dashboard:"Übersicht", calendar:"Kalender", transactions:"Transaktionen", accounts:"Konten & Karten",
+  insightsMonthly:"Monatsübersicht", insightsYearly:"Jahresübersicht", paycheck:"Gehaltsansicht",
+  budget5030:"50/30/20-Budget", debt:"Schuldenabbau", sinkingFunds:"Sparziele", netWorth:"Nettovermögen",
+  noSpend:"Ausgabenfreie-Tage-Challenge", settings:"Einstellungen", guide:"Schnellstart-Anleitung",
+  sectionOverview:"Überblick", sectionPlanning:"Planung", sectionTools:"Werkzeuge", sectionSystem:"System" };
+
+I18N.en.shell = { currentBalance:"Current balance", projectedBalance:"Projected balance", overdueCount:"Overdue",
+  todayLabel:"Today", menuToggle:"Toggle menu" };
+I18N.fr.shell = { currentBalance:"Solde actuel", projectedBalance:"Solde projeté", overdueCount:"En retard",
+  todayLabel:"Aujourd'hui", menuToggle:"Basculer le menu" };
+I18N.es.shell = { currentBalance:"Saldo actual", projectedBalance:"Saldo proyectado", overdueCount:"Vencidos",
+  todayLabel:"Hoy", menuToggle:"Alternar menú" };
+I18N.de.shell = { currentBalance:"Aktueller Saldo", projectedBalance:"Prognostizierter Saldo", overdueCount:"Überfällig",
+  todayLabel:"Heute", menuToggle:"Menü umschalten" };
+
+I18N.en.cat = { income:"Income", savings:"Savings", bills:"Bills", expenses:"Expenses", debtPayments:"Debt Payments", subscriptions:"Subscriptions" };
+I18N.fr.cat = { income:"Revenus", savings:"Épargne", bills:"Factures", expenses:"Dépenses", debtPayments:"Remboursements de dettes", subscriptions:"Abonnements" };
+I18N.es.cat = { income:"Ingresos", savings:"Ahorros", bills:"Facturas", expenses:"Gastos", debtPayments:"Pagos de deuda", subscriptions:"Suscripciones" };
+I18N.de.cat = { income:"Einkommen", savings:"Ersparnisse", bills:"Rechnungen", expenses:"Ausgaben", debtPayments:"Schuldenzahlungen", subscriptions:"Abonnements" };
+
+function t(key, params){
+  const lang = (Store.get().settings.language) || "en";
+  const [group, name] = key.split(".");
+  let dict = (I18N[lang] && I18N[lang][group]) || {};
+  let str = dict[name];
+  if(str==null){ dict = I18N.en[group] || {}; str = dict[name]; }
+  if(str==null) return key;
+  if(params){ Object.keys(params).forEach(k=>{ str = str.replace(new RegExp("\\{"+k+"\\}","g"), params[k]); }); }
+  return str;
+}
+
+/* ===== SECTION: DATA LAYER ===== */
+function defaultPriorityNames(){ return ["Critical","High","Medium","Low","Someday"]; }
+function defaultCategoryNames(){
+  return {
+    income:["Salary","Freelance","Other income"],
+    savings:["Emergency fund","General savings"],
+    bills:["Rent/Mortgage","Utilities","Insurance","Phone"],
+    expenses:["Groceries","Transport","Dining out","Fun money"],
+    debtPayments:["Credit card","Student loan","Car loan"],
+    subscriptions:["Streaming","Software","Gym"]
+  };
+}
+function defaultSettings(){
+  return {
+    language: (navigator.language||"en").slice(0,2).toLowerCase(),
+    theme: "light",
+    currencySymbol: "$",
+    currencyPosition: "before",
+    weekStart: 0,
+    categoryNames: defaultCategoryNames(),
+    priorityNames: defaultPriorityNames(),
+    menuVisibility: {},
+    budgetingStrategy: "carriedOver",
+    ratios503020: { needs:50, wants:30, savings:20 },
+    noSpendTargetsByMonth: {},
+    seenHelp: {},
+    license: { unlocked:false, code:"" },
+    autoFolder: { enabled:false }
+  };
+}
+function defaultState(){
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    isDemo: true,
+    settings: defaultSettings(),
+    accounts: [],
+    transactions: [],
+    sinkingFunds: [],
+    debts: [],
+    netWorthSnapshots: []
+  };
+}
+if(!I18N.en.nav.language) { /* noop, keeps linters quiet */ }
+
+const DataLayer = (function(){
+  function read(){
+    try{
+      const raw = localStorage.getItem(APP_KEY);
+      if(!raw) return null;
+      const parsed = JSON.parse(raw);
+      return migrate(parsed);
+    }catch(e){ console.error("Coffer: failed to read saved data", e); return null; }
+  }
+  function migrate(data){
+    if(!data.schemaVersion) data.schemaVersion = 1;
+    // future migrations branch on data.schemaVersion here
+    data.schemaVersion = SCHEMA_VERSION;
+    return data;
+  }
+  const _writeRaw = (data)=>{
+    try{
+      localStorage.setItem(APP_KEY, JSON.stringify(data));
+      return true;
+    }catch(e){
+      console.error("Coffer: failed to save", e);
+      toast(t("common.error")+": "+(e && e.message ? e.message : "storage"), "error");
+      return false;
+    }
+  };
+  const writeDebounced = debounce((data)=>{ _writeRaw(data); onAfterSave(data); }, 400);
+  let onAfterSave = ()=>{};
+  function setAfterSaveHook(fn){ onAfterSave = fn; }
+  function writeNow(data){ const ok=_writeRaw(data); onAfterSave(data); return ok; }
+  function sizeEstimateBytes(data){ try{ return new Blob([JSON.stringify(data)]).size; }catch(e){ return JSON.stringify(data).length; } }
+  return { read, write: writeDebounced, writeNow, sizeEstimateBytes, setAfterSaveHook };
+})();
+
+/* ===== SECTION: STORE (state + pub/sub) ===== */
+const Store = (function(){
+  let state = null;
+  const listeners = new Set();
+  function get(){ return state; }
+  function set(nextState, opts){
+    state = nextState;
+    DataLayer.write(state);
+    if(!opts || !opts.silent) emit();
+  }
+  function mutate(mutator, opts){
+    mutator(state);
+    DataLayer.write(state);
+    if(!opts || !opts.silent) emit();
+  }
+  function emit(){ listeners.forEach(fn=>fn(state)); }
+  function subscribe(fn){ listeners.add(fn); return ()=>listeners.delete(fn); }
+  function init(){
+    let loaded = DataLayer.read();
+    if(!loaded){ loaded = defaultState(); seedDemoData(loaded); DataLayer.writeNow(loaded); }
+    state = loaded;
+  }
+  return { get, set, mutate, subscribe, init };
+})();
+
+/* ===== SECTION: ROUTER ===== */
+const Router = (function(){
+  const routes = {};
+  let current = null;
+  function on(path, handler){ routes[path]=handler; }
+  function resolve(){
+    let hash = location.hash.replace(/^#\/?/, "");
+    if(!hash) hash = "dashboard";
+    const [path, queryStr] = hash.split("?");
+    const parts = path.split("/").filter(Boolean);
+    const routeName = parts[0] || "dashboard";
+    const params = parts.slice(1);
+    const query = {};
+    if(queryStr) queryStr.split("&").forEach(kv=>{ const [k,v]=kv.split("="); if(k) query[decodeURIComponent(k)] = decodeURIComponent(v||""); });
+    current = routeName;
+    const handler = routes[routeName] || routes["dashboard"];
+    handler(params, query);
+    highlightNav(routeName);
+  }
+  function go(path){ location.hash = "#/"+path; }
+  function start(){ window.addEventListener("hashchange", resolve); resolve(); }
+  function currentRoute(){ return current; }
+  function highlightNav(routeName){
+    document.querySelectorAll(".navlink").forEach(a=>{
+      a.classList.toggle("active", a.dataset.route===routeName);
+    });
+  }
+  return { on, go, start, currentRoute };
+})();
+
+/* ===== SECTION: RENDER HELPERS ===== */
+function h(tag, attrs, children){
+  const el = document.createElement(tag.split(".")[0].split("#")[0] || "div");
+  const idMatch = tag.match(/#([\w-]+)/); if(idMatch) el.id = idMatch[1];
+  const classMatches = tag.match(/\.[\w-]+/g); if(classMatches) el.className = classMatches.map(c=>c.slice(1)).join(" ");
+  attrs = attrs || {};
+  Object.keys(attrs).forEach(k=>{
+    const v = attrs[k];
+    if(v==null || v===false) return;
+    if(k==="class"){ el.className = (el.className? el.className+" ":"")+v; }
+    else if(k.startsWith("on") && typeof v === "function"){ el.addEventListener(k.slice(2).toLowerCase(), v); }
+    else if(k==="html"){ el.innerHTML = v; }
+    else if(k==="checked" || k==="disabled" || k==="selected"){ el[k]=!!v; }
+    else if(k==="value"){ el.value = v; }
+    else { el.setAttribute(k, v); }
+  });
+  (children||[]).flat(Infinity).forEach(c=>{
+    if(c==null || c===false) return;
+    el.appendChild(typeof c === "string" || typeof c === "number" ? document.createTextNode(String(c)) : c);
+  });
+  return el;
+}
+function mountContent(node){
+  const content = document.getElementById("contentRoot");
+  content.innerHTML = "";
+  content.appendChild(node);
+}
+function toast(msg, kind){
+  const root = document.getElementById("toastRoot");
+  const el = h("div.toast", {}, [msg]);
+  if(kind==="error") el.style.background = "var(--bad)";
+  root.appendChild(el);
+  setTimeout(()=>{ el.style.transition="opacity .3s"; el.style.opacity="0"; setTimeout(()=>el.remove(),300); }, 3200);
+}
+
+let modalStack = [];
+function openModal({ title, body, footer, onClose, wide }){
+  const overlay = h("div.modal-overlay", { onclick:(e)=>{ if(e.target===overlay) closeModal(); } }, [
+    h("div.modal", { style: wide?"max-width:760px":"" }, [
+      h("div.modal-head", {}, [ h("h3",{},[title]), h("button.modal-close", { onclick:()=>closeModal(), "aria-label":t("common.close") }, ["×"]) ]),
+      h("div.modal-body", { id:"modalBodyMount" }, [body]),
+      footer ? h("div.modal-foot", {}, footer) : null
+    ])
+  ]);
+  document.body.appendChild(overlay);
+  modalStack.push({ overlay, onClose });
+  document.body.style.overflow = "hidden";
+  return overlay;
+}
+function closeModal(){
+  const top = modalStack.pop();
+  if(!top) return;
+  top.overlay.remove();
+  if(modalStack.length===0) document.body.style.overflow = "";
+  if(top.onClose) top.onClose();
+}
+function confirmDialog(message, onYes){
+  openModal({
+    title: t("common.areYouSure"),
+    body: h("p", {}, [message]),
+    footer: [
+      h("button.btn", { onclick:()=>closeModal() }, [t("common.cancel")]),
+      h("button.btn.btn-danger", { onclick:()=>{ closeModal(); onYes(); } }, [t("common.confirm")])
+    ]
+  });
+}
+
+/* ===== SECTION: TEST HARNESS =====
+   Run window.__COFFER_TESTS__.run() from the browser console to execute
+   in-file sanity checks against the data layer (no build tooling needed). */
+const __COFFER_TESTS__ = (function(){
+  const tests = [];
+  function test(name, fn){ tests.push({name, fn}); }
+  function run(){
+    let pass=0, fail=0;
+    tests.forEach(({name,fn})=>{
+      try{ fn(assertEqual, assertTrue); console.log("%cPASS","color:green", name); pass++; }
+      catch(e){ console.error("%cFAIL","color:red", name, e); fail++; }
+    });
+    console.log(`Coffer tests: ${pass} passed, ${fail} failed (of ${tests.length})`);
+    return { pass, fail };
+  }
+  function assertEqual(a,b,msg){ if(JSON.stringify(a)!==JSON.stringify(b)) throw new Error((msg||"assertEqual failed")+" -- got "+JSON.stringify(a)+" expected "+JSON.stringify(b)); }
+  function assertTrue(cond,msg){ if(!cond) throw new Error(msg||"assertTrue failed"); }
+  return { test, run };
+})();
+
+/* ===== SECTION: SELECTORS (derived data) =====
+   Placeholder balance/overdue math for the shell; the full transaction
+   engine (recurrence expansion, series handling) lands in the next
+   section and these selectors get used by it too. */
+function computeAccountBalance(state, accountId){
+  const acct = state.accounts.find(a=>a.id===accountId);
+  if(!acct) return 0;
+  let bal = acct.startingBalance||0;
+  state.transactions.forEach(tx=>{
+    if(tx.accountId!==accountId || tx.status!=="paid") return;
+    bal += (tx.category==="income") ? tx.amount : -tx.amount;
+  });
+  return bal;
+}
+function computeCurrentBalance(state){
+  return state.accounts.reduce((sum,a)=> sum + computeAccountBalance(state,a.id), 0);
+}
+function computeProjectedBalance(state, throughISO){
+  const through = throughISO || todayISO();
+  let bal = computeCurrentBalance(state);
+  state.transactions.forEach(tx=>{
+    if(tx.status==="paid") return;
+    if(tx.dueDate<=through){ bal += (tx.category==="income") ? tx.amount : -tx.amount; }
+  });
+  return bal;
+}
+function deriveStatus(tx){
+  if(tx.status==="paid") return "paid";
+  if(tx.dueDate < todayISO()) return "overdue";
+  return "planned";
+}
+function computeOverdueCount(state){
+  return state.transactions.filter(tx=>deriveStatus(tx)==="overdue").length;
+}
+
+/* ===== SECTION: DEMO DATA =====
+   First run only. Seeds a small, obviously-fictional dataset so the app
+   is never an empty void on first open, and so the demo/licensing gate
+   (Settings > Unlock) has something concrete to show as "sample data". */
+function seedDemoData(state){
+  state.isDemo = true;
+  const checking = { id:uid("acct"), name:"Everyday Checking", type:"checking", startingBalance:1200 };
+  const savings = { id:uid("acct"), name:"Emergency Fund", type:"savings", startingBalance:3000 };
+  const card = { id:uid("acct"), name:"Rewards Card", type:"creditCard", startingBalance:0 };
+  state.accounts.push(checking, savings, card);
+  const ym = ymOf(todayISO());
+  const mk = (over)=>{
+    const d = new Date(); d.setDate(d.getDate()+over); return isoDate(d);
+  };
+  const demoTx = [
+    { category:"income", name:"Salary", amount:2800, dueDate: ym+"-01", status:"paid", accountId:checking.id, recurrence:{frequency:"monthly"} },
+    { category:"bills", name:"Rent/Mortgage", amount:1100, dueDate: ym+"-03", status:"paid", accountId:checking.id, recurrence:{frequency:"monthly"} },
+    { category:"bills", name:"Utilities", amount:140, dueDate: mk(3), status:"planned", accountId:checking.id, recurrence:{frequency:"monthly"} },
+    { category:"subscriptions", name:"Streaming", amount:16, dueDate: mk(-2), status:"paid", accountId:card.id, recurrence:{frequency:"monthly"} },
+    { category:"expenses", name:"Groceries", amount:96.4, dueDate: mk(-1), status:"paid", accountId:card.id, type:"payment", paidWithCard:true, isVariable:true, recurrence:{frequency:"oneTime"} },
+    { category:"expenses", name:"Dining out", amount:38.2, dueDate: mk(-4), status:"paid", accountId:card.id, type:"payment", paidWithCard:true, isVariable:true, recurrence:{frequency:"oneTime"} },
+    { category:"savings", name:"Emergency fund", amount:200, dueDate: ym+"-05", status:"paid", accountId:savings.id, recurrence:{frequency:"monthly"} },
+    { category:"debtPayments", name:"Credit card", amount:150, dueDate: mk(6), status:"planned", accountId:checking.id, recurrence:{frequency:"monthly"} }
+  ];
+  demoTx.forEach(t0=>{
+    state.transactions.push(Object.assign({
+      id: uid("tx"), notes:"", priority:2, seriesId: uid("series"), isVariable:false, paidWithCard:false, type:"payment"
+    }, t0));
+  });
+  state.debts.push({ id:uid("debt"), name:"Rewards Card", balance:640, apr:22.9, minimumPayment:35, extraPayment:0 });
+  state.sinkingFunds.push({ id:uid("fund"), name:"Holiday gifts", targetAmount:500, contributions:[{ id:uid("contrib"), amount:80, date: mk(-10) }] });
+}
+
+/* ===== SECTION: SHELL (sidebar, mini calendar, status bar) ===== */
+const NAV_GROUPS = [
+  { key:"sectionOverview", items:[
+    { route:"dashboard", ico:"◆" }, { route:"calendar", ico:"▦" }, { route:"transactions", ico:"≣" }, { route:"accounts", ico:"▤" }
+  ]},
+  { key:"sectionPlanning", items:[
+    { route:"insights-monthly", ico:"◔", labelKey:"insightsMonthly" }, { route:"insights-yearly", ico:"◈", labelKey:"insightsYearly" },
+    { route:"paycheck", ico:"$" }, { route:"budget5030", ico:"◷" }
+  ]},
+  { key:"sectionTools", items:[
+    { route:"debt", ico:"▼" }, { route:"sinkingFunds", ico:"◎" }, { route:"netWorth", ico:"⬆" }, { route:"noSpend", ico:"✕" }
+  ]},
+  { key:"sectionSystem", items:[
+    { route:"settings", ico:"⚙" }, { route:"guide", ico:"?" }
+  ]}
+];
+function navLabel(item){ return t("nav."+(item.labelKey||item.route.replace(/-([a-z])/g,(m,c)=>c.toUpperCase()))); }
+
+let sidebarCollapsed = false, sidebarMobileOpen = false, miniCalMonth = todayISO().slice(0,7);
+
+function renderShell(){
+  const app = document.getElementById("app");
+  app.innerHTML = "";
+  const state = Store.get();
+
+  const sidebar = h("nav.sidebar"+(sidebarCollapsed?".collapsed":"")+(sidebarMobileOpen?".mobile-open":""), { id:"sidebarEl" }, [
+    h("div.sidebar-brand", {}, [
+      h("div.mark", {}, ["C"]),
+      h("div.name", {}, [t("common.appName")]),
+      h("button.sidebar-toggle", { onclick:()=>{ sidebarCollapsed=!sidebarCollapsed; renderShell(); }, title:t("shell.menuToggle") }, ["⟨"])
+    ]),
+    renderMiniCalendar(),
+    h("div.nav", {}, NAV_GROUPS.map(g=>h("div.navgroup",{},[
+      h("div.navgroup-label",{},[t("nav."+g.key)]),
+      ...g.items.map(item=> h("a.navlink", { href:"#/"+item.route, "data-route":item.route, onclick:()=>{ sidebarMobileOpen=false; } }, [
+        h("span.ico",{},[item.ico]), h("span.navlabel",{},[navLabel(item)])
+      ]))
+    ])))
+  ]);
+
+  const backdrop = sidebarMobileOpen ? h("div.sidebar-backdrop", { onclick:()=>{ sidebarMobileOpen=false; renderShell(); } }) : null;
+
+  const topbarMobile = h("div.topbar-mobile", {}, [
+    h("button.sidebar-toggle-mobile", { onclick:()=>{ sidebarMobileOpen=!sidebarMobileOpen; renderShell(); } }, ["☰"]),
+    h("div.mark", {}, ["C"]), h("strong",{},[t("common.appName")])
+  ]);
+
+  const main = h("div.main", {}, [
+    topbarMobile,
+    state.isDemo ? h("div.demo-banner", {}, [
+      "🔖 "+t("common.demo")+" — sample data.",
+      h("button", { onclick:()=> Router.go("settings?tab=license") }, [t("common.unlock")])
+    ]) : null,
+    renderStatusBar(),
+    h("div.content", { id:"contentRoot" })
+  ]);
+
+  app.appendChild(sidebar);
+  if(backdrop) app.appendChild(backdrop);
+  app.appendChild(main);
+  Router.highlightNavSafe && Router.highlightNavSafe();
+}
+
+function renderStatusBar(){
+  const state = Store.get();
+  const bal = computeCurrentBalance(state);
+  const proj = computeProjectedBalance(state);
+  const overdue = computeOverdueCount(state);
+  return h("div.statusbar", {}, [
+    h("div.stat", {}, [ h("div.lbl",{},[t("shell.currentBalance")]), h("div.val.num"+(bal<0?" bad":""),{},[fmtMoney(bal)]) ]),
+    h("div.stat", {}, [ h("div.lbl",{},[t("shell.projectedBalance")]), h("div.val.num"+(proj<0?" bad":""),{},[fmtMoney(proj)]) ]),
+    h("div.stat", {}, [ h("div.lbl",{},[t("shell.overdueCount")]), h("div.val.num"+(overdue>0?" bad":""),{},[String(overdue)]) ]),
+    h("div.stat", {}, [ h("div.lbl",{},[t("shell.todayLabel")]), h("div.val",{},[fmtDate(todayISO())]) ]),
+    h("div.statusbar-actions", {}, [
+      h("button.btn.btn-primary.btn-sm", { onclick: ()=> openTransactionModal() }, ["+ "+t("common.add")])
+    ])
+  ]);
+}
+
+function renderMiniCalendar(){
+  const state = Store.get();
+  const [y,m] = miniCalMonth.split("-").map(Number);
+  const first = new Date(y, m-1, 1);
+  const startOffset = (first.getDay() - state.settings.weekStart + 7) % 7;
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const txDays = new Set(state.transactions.filter(tx=>ymOf(tx.dueDate)===miniCalMonth).map(tx=>Number(tx.dueDate.slice(8,10))));
+  const dow = [0,1,2,3,4,5,6].map(i=>(i+state.settings.weekStart)%7);
+  const dowLabels = { en:["S","M","T","W","T","F","S"], fr:["D","L","M","M","J","V","S"], es:["D","L","M","M","J","V","S"], de:["S","M","D","M","D","F","S"] };
+  const labels = dowLabels[state.settings.language] || dowLabels.en;
+  const rows = [];
+  let cells = [];
+  for(let i=0;i<startOffset;i++) cells.push(h("td.other-month",{},[""]));
+  for(let d=1; d<=daysInMonth; d++){
+    const iso = miniCalMonth+"-"+String(d).padStart(2,"0");
+    const isToday = iso===todayISO();
+    cells.push(h("td"+(isToday?".today":"")+(txDays.has(d)?".has-tx":""), { onclick:()=>{ Router.go("calendar/"+miniCalMonth); } }, [String(d)]));
+  }
+  while(cells.length % 7 !== 0) cells.push(h("td.other-month",{},[""]));
+  for(let i=0;i<cells.length;i+=7) rows.push(h("tr",{},cells.slice(i,i+7)));
+  return h("div.mini-cal", {}, [
+    h("div.mc-head", {}, [
+      h("button", { onclick:()=>{ miniCalMonth=addMonths(miniCalMonth+"-01",-1).slice(0,7); renderShell(); mountRoute(); } }, ["‹"]),
+      h("span", {}, [fmtMonthYear(miniCalMonth)]),
+      h("button", { onclick:()=>{ miniCalMonth=addMonths(miniCalMonth+"-01",1).slice(0,7); renderShell(); mountRoute(); } }, ["›"])
+    ]),
+    h("table", {}, [ h("thead",{},[h("tr",{}, dow.map(i=>h("th",{},[labels[i]])))]), h("tbody",{},rows) ])
+  ]);
+}
+
+function refreshShellChrome(){
+  const sb = document.querySelector(".statusbar");
+  if(sb) sb.replaceWith(renderStatusBar());
+  const mc = document.querySelector(".mini-cal");
+  if(mc) mc.replaceWith(renderMiniCalendar());
+  const banner = document.querySelector(".demo-banner");
+  const state = Store.get();
+  if(!state.isDemo && banner) banner.remove();
+}
+
+/* ===== SECTION: PLACEHOLDER ROUTES (filled in by later sections) ===== */
+function placeholderRoute(title){
+  return ()=> mountContent(h("div.card", {}, [ h("h3",{},[title]), h("p",{},[t("common.noData")]) ]));
+}
+let ROUTE_HANDLERS = {
+  "dashboard": placeholderRoute("Dashboard"),
+  "calendar": placeholderRoute("Calendar"),
+  "transactions": placeholderRoute("Transactions"),
+  "accounts": placeholderRoute("Accounts"),
+  "insights-monthly": placeholderRoute("Monthly Insights"),
+  "insights-yearly": placeholderRoute("Yearly Overview"),
+  "paycheck": placeholderRoute("Paycheck"),
+  "budget5030": placeholderRoute("50/30/20"),
+  "debt": placeholderRoute("Debt Payoff"),
+  "sinkingFunds": placeholderRoute("Sinking Funds"),
+  "netWorth": placeholderRoute("Net Worth"),
+  "noSpend": placeholderRoute("No-Spend Challenge"),
+  "settings": placeholderRoute("Settings"),
+  "guide": placeholderRoute("Quick Start Guide")
+};
+function mountRoute(){ Router._current && ROUTE_HANDLERS[Router._current] && ROUTE_HANDLERS[Router._current](); }
+function openTransactionModal(){ toast("Transaction modal lands in phase 2."); }
+
+/* ===== SECTION: BOOT ===== */
+function applyTheme(){
+  const theme = Store.get().settings.theme;
+  document.documentElement.setAttribute("data-theme", theme==="dark" ? "dark" : (theme==="light"?"light":""));
+}
+function boot(){
+  Store.init();
+  applyTheme();
+  DataLayer.setAfterSaveHook(()=>{ /* auto-folder writer hooks in later */ });
+  Object.keys(ROUTE_HANDLERS).forEach(name=>{
+    Router.on(name, (params, query)=>{
+      Router._current = name;
+      refreshShellChromeIfNeeded();
+      ROUTE_HANDLERS[name](params, query);
+    });
+  });
+  Store.subscribe(()=>{ refreshShellChrome(); });
+  renderShell();
+  Router.start();
+}
+function refreshShellChromeIfNeeded(){ /* placeholder for future active-tab bookkeeping */ }
+
+if(document.readyState==="loading"){ document.addEventListener("DOMContentLoaded", boot); } else { boot(); }
+
+/* ===== SECTION: SECTION_INSERT_POINT ===== */
+window.__COFFER_BOOT_PLACEHOLDER__ = true;
+</script>
+</body>
+</html>

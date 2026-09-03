@@ -202,6 +202,7 @@ table{ border-collapse:collapse; width:100%; }
 .card{
   background:var(--paper-raised); border:1px solid var(--line); border-radius:var(--radius);
   padding:16px 18px; margin-bottom:16px; box-shadow: var(--shadow);
+  max-width:100%; overflow-x:auto;
 }
 .card > h3{ font-size:15.5px; display:flex; align-items:center; gap:.5em; }
 .card-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; }
@@ -1264,7 +1265,7 @@ function renderShell(){
     renderMiniCalendar(),
     h("div.nav", {}, NAV_GROUPS.map(g=>h("div.navgroup",{},[
       h("div.navgroup-label",{},[t("nav."+g.key)]),
-      ...g.items.map(item=> h("a.navlink", { href:"#/"+item.route, "data-route":item.route, onclick:()=>{ sidebarMobileOpen=false; } }, [
+      ...g.items.map(item=> h("a.navlink", { href:"#/"+item.route, "data-route":item.route, onclick:()=>{ if(sidebarMobileOpen){ sidebarMobileOpen=false; renderShell(); } } }, [
         h("span.ico",{},[item.ico]), h("span.navlabel",{},[navLabel(item)])
       ]))
     ])))
@@ -2830,7 +2831,7 @@ function renderPaycheck(){
 
   mountContent(h("div", {}, [ h("h2",{},[t("paycheck.title")]), settingsCard, nav,
     h("div.card", {}, [ h("p",{},[t("paycheck.income")+": "+fmtMoney(income)+"  ·  "+t("paycheck.outflow")+": "+fmtMoney(outflow)+"  ·  "+t("paycheck.net")+": "+fmtMoney(income-outflow)]) ]),
-    table
+    h("div.card", {}, [table])
   ]));
 }
 ROUTE_HANDLERS.paycheck = renderPaycheck;

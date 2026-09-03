@@ -44,9 +44,9 @@
   --ink-faint: #948DA8;
   --line: #E7E2F5;
   --line-strong: #D3CAEE;
-  --violet: #7C3AED;
-  --violet-strong: #5B21B6;
-  --violet-tint: #EDE6FE;
+  --violet: #2563EB;
+  --violet-strong: #1D4ED8;
+  --violet-tint: #DBEAFE;
   --pine: #0D9488;
   --pine-strong: #0F766E;
   --pine-tint: #CCFBF1;
@@ -68,7 +68,7 @@
   --sidebar-active: rgba(255,255,255,.20);
   --shadow: 0 1px 2px rgba(76,29,149,.06), 0 8px 20px rgba(76,29,149,.09);
   --radius: 12px;
-  --focus: 0 0 0 3px rgba(124,58,237,.35);
+  --focus: 0 0 0 3px rgba(37,99,235,.35);
 }
 :root[data-theme="dark"]{
   color-scheme: dark;
@@ -79,10 +79,10 @@
   --ink-faint: #6D7A90;
   --line: #22334A;
   --line-strong: #304A69;
-  --violet: #7C93F5;
-  --violet-strong: #A9B8FF;
-  --violet-tint: #1B2A4A;
-  --focus: 0 0 0 3px rgba(124,147,245,.4);
+  --violet: #60A5FA;
+  --violet-strong: #93C5FD;
+  --violet-tint: #1E3A5F;
+  --focus: 0 0 0 3px rgba(96,165,250,.4);
   --pine: #2DD4BF;
   --pine-strong: #5EEAD4;
   --pine-tint: #123A36;
@@ -109,8 +109,8 @@
     color-scheme: dark;
     --paper: #0C1524; --paper-raised: #142235; --ink: #ECEFF7; --ink-soft: #A9B3C7;
     --ink-faint: #6D7A90; --line: #22334A; --line-strong: #304A69;
-    --violet: #7C93F5; --violet-strong: #A9B8FF; --violet-tint: #1B2A4A;
-    --focus: 0 0 0 3px rgba(124,147,245,.4);
+    --violet: #60A5FA; --violet-strong: #93C5FD; --violet-tint: #1E3A5F;
+    --focus: 0 0 0 3px rgba(96,165,250,.4);
     --pine: #2DD4BF; --pine-strong: #5EEAD4; --pine-tint: #123A36;
     --rust: #FB923C; --rust-tint: #40230D; --gold: #FBBF24; --gold-tint: #402D0A;
     --good: #4ADE80; --good-tint: #123A22; --bad: #F87171; --bad-tint: #401515;
@@ -245,7 +245,7 @@ table{ border-collapse:collapse; width:100%; }
   padding:8px 14px; font-size:13.5px; font-weight:600; line-height:1.2;
 }
 .btn:hover{ border-color:var(--violet); color:var(--violet); }
-.btn-primary{ background:linear-gradient(135deg,var(--violet),var(--violet-strong)); border-color:var(--violet-strong); color:#fff; box-shadow:0 3px 10px rgba(124,58,237,.28); }
+.btn-primary{ background:linear-gradient(135deg,var(--violet),var(--violet-strong)); border-color:var(--violet-strong); color:#fff; box-shadow:0 3px 10px rgba(37,99,235,.28); }
 .btn-primary:hover{ filter:brightness(1.07); color:#fff; }
 .btn-danger{ background:var(--paper-raised); border-color:var(--bad); color:var(--bad); }
 .btn-danger:hover{ background:var(--bad); color:#fff; }
@@ -1696,7 +1696,7 @@ function renderStatusBar(){
   const proj = computeProjectedBalance(state);
   const overdue = computeOverdueCount(state);
   return h("div.statusbar", {}, [
-    h("div.stat", {}, [ statIcon("💰","#7C3AED"), h("div", {}, [h("div.lbl",{},[t("shell.currentBalance")]), h("div.val.num"+(bal<0?" bad":""),{},[fmtMoney(bal)])]) ]),
+    h("div.stat", {}, [ statIcon("💰","#2563EB"), h("div", {}, [h("div.lbl",{},[t("shell.currentBalance")]), h("div.val.num"+(bal<0?" bad":""),{},[fmtMoney(bal)])]) ]),
     h("div.stat", {}, [ statIcon("📈","#0D9488"), h("div", {}, [h("div.lbl",{},[t("shell.projectedBalance")]), h("div.val.num"+(proj<0?" bad":""),{},[fmtMoney(proj)])]) ]),
     h("div.stat", {}, [ statIcon("⚠️","#F97316"), h("div", {}, [h("div.lbl",{},[t("shell.overdueCount")]), h("div.val.num"+(overdue>0?" bad":""),{},[String(overdue)])]) ]),
     h("div.stat", {}, [ statIcon("📅","#38BDF8"), h("div", {}, [h("div.lbl",{},[t("shell.todayLabel")]), h("div.val",{},[fmtDate(todayISO())])]) ]),
@@ -2639,7 +2639,7 @@ function openDaySlideIn(iso, dayTx){
 /* ===== SECTION: CHARTS (hand-rolled SVG; no chart library) =====
    Every chart here is meant to be paired with a data table by the caller —
    these functions only draw the picture. */
-const CHART_PALETTE = ["#7C3AED","#F97316","#0D9488","#F472B6","#22D3EE","#FBBF24","#34D399","#818CF8"];
+const CHART_PALETTE = ["#2563EB","#F97316","#0D9488","#F472B6","#22D3EE","#FBBF24","#34D399","#818CF8"];
 function svgEl(tag, attrs){
   const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
   Object.keys(attrs||{}).forEach(k=> el.setAttribute(k, attrs[k]));

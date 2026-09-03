@@ -72,16 +72,17 @@
 }
 :root[data-theme="dark"]{
   color-scheme: dark;
-  --paper: #15121F;
-  --paper-raised: #201C31;
-  --ink: #F1EEFA;
-  --ink-soft: #C6BFDD;
-  --ink-faint: #8D84A8;
-  --line: #362F4C;
-  --line-strong: #473D63;
-  --violet: #A78BFA;
-  --violet-strong: #C4B5FD;
-  --violet-tint: #2C2350;
+  --paper: #0C1524;
+  --paper-raised: #142235;
+  --ink: #ECEFF7;
+  --ink-soft: #A9B3C7;
+  --ink-faint: #6D7A90;
+  --line: #22334A;
+  --line-strong: #304A69;
+  --violet: #7C93F5;
+  --violet-strong: #A9B8FF;
+  --violet-tint: #1B2A4A;
+  --focus: 0 0 0 3px rgba(124,147,245,.4);
   --pine: #2DD4BF;
   --pine-strong: #5EEAD4;
   --pine-tint: #123A36;
@@ -94,7 +95,7 @@
   --bad: #F87171;
   --bad-tint: #401515;
   --slate: #94A3B8;
-  --slate-tint: #232032;
+  --slate-tint: #1B2836;
   --sidebar-grad: linear-gradient(180deg, #0A1526 0%, #14243E 55%, #1B3050 100%);
   --sidebar-ink: #F5F0FF;
   --sidebar-ink-soft: rgba(245,240,255,.65);
@@ -106,13 +107,14 @@
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]):not([data-theme="dark"]){
     color-scheme: dark;
-    --paper: #15121F; --paper-raised: #201C31; --ink: #F1EEFA; --ink-soft: #C6BFDD;
-    --ink-faint: #8D84A8; --line: #362F4C; --line-strong: #473D63;
-    --violet: #A78BFA; --violet-strong: #C4B5FD; --violet-tint: #2C2350;
+    --paper: #0C1524; --paper-raised: #142235; --ink: #ECEFF7; --ink-soft: #A9B3C7;
+    --ink-faint: #6D7A90; --line: #22334A; --line-strong: #304A69;
+    --violet: #7C93F5; --violet-strong: #A9B8FF; --violet-tint: #1B2A4A;
+    --focus: 0 0 0 3px rgba(124,147,245,.4);
     --pine: #2DD4BF; --pine-strong: #5EEAD4; --pine-tint: #123A36;
     --rust: #FB923C; --rust-tint: #40230D; --gold: #FBBF24; --gold-tint: #402D0A;
     --good: #4ADE80; --good-tint: #123A22; --bad: #F87171; --bad-tint: #401515;
-    --slate: #94A3B8; --slate-tint: #232032;
+    --slate: #94A3B8; --slate-tint: #1B2836;
     --sidebar-grad: linear-gradient(180deg, #0A1526 0%, #14243E 55%, #1B3050 100%);
     --sidebar-ink: #F5F0FF; --sidebar-ink-soft: rgba(245,240,255,.65); --sidebar-line: rgba(245,240,255,.12);
     --sidebar-hover: rgba(245,240,255,.08); --sidebar-active: rgba(245,240,255,.16);

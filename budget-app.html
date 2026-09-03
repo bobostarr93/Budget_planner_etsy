@@ -1,18 +1,18 @@
 <!DOCTYPE html>
 <!--
-  Coffer — a local-first, offline-capable household budget tracker.
+  MoneyFlow — a local-first, offline-capable household budget tracker.
 
   HOW TO RUN THIS APP
   --------------------
   There is nothing to install and nothing to build. Double-click this file
   (or open it with File > Open in any modern browser) and it runs entirely
   from disk. All data is stored in this browser's localStorage, on this
-  device, under the key "cofferapp.data.v1". Nothing is ever sent over the
+  device, under the key "moneyflowapp.data.v1". Nothing is ever sent over the
   network — this file makes zero outbound requests at runtime.
 
   To move your data to another device, use Settings > Backup to export a
   JSON file, then import it on the other device. On Chromium-based browsers
-  you can also point Coffer at a local folder (ideally one your OS already
+  you can also point MoneyFlow at a local folder (ideally one your OS already
   cloud-syncs, e.g. Dropbox/Drive/OneDrive) and it will keep a backup file
   there automatically.
 
@@ -26,7 +26,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<title>Coffer — Budget Planner</title>
+<title>MoneyFlow — Ultimate Budget App</title>
 <style>
 /* ============================================================
    DESIGN TOKENS
@@ -174,8 +174,10 @@ table{ border-collapse:collapse; width:100%; }
   display:flex; align-items:center; justify-content:center; font-family:var(--font-serif);
   font-weight:700; flex:0 0 auto; font-size:16px;
 }
-.sidebar-brand .name{ font-family:var(--font-serif); font-weight:700; font-size:17.5px; white-space:nowrap; overflow:hidden; color:var(--sidebar-ink); }
-.sidebar.collapsed .name, .sidebar.collapsed .mini-cal, .sidebar.collapsed .navgroup-label, .sidebar.collapsed .navlabel{ display:none; }
+.sidebar-brand .brand-text{ display:flex; flex-direction:column; flex:1 1 auto; overflow:hidden; }
+.sidebar-brand .name{ font-family:var(--font-serif); font-weight:700; font-size:17.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--sidebar-ink); }
+.sidebar-brand .tagline{ font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--sidebar-ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sidebar.collapsed .brand-text, .sidebar.collapsed .mini-cal, .sidebar.collapsed .navgroup-label, .sidebar.collapsed .navlabel{ display:none; }
 .sidebar-toggle{
   margin-left:auto; background:none; border:1px solid var(--sidebar-line); border-radius:8px;
   width:26px; height:26px; display:flex; align-items:center; justify-content:center; color:var(--sidebar-ink-soft);
@@ -370,7 +372,7 @@ table.data-table tr:hover .row-actions{ opacity:1; }
   .sidebar{ position:fixed; left:0; top:0; bottom:0; transform:translateX(-100%); width:260px; box-shadow:0 0 0 9999px rgba(0,0,0,0); }
   .sidebar.mobile-open{ transform:translateX(0); box-shadow:0 0 40px rgba(0,0,0,.35); }
   .sidebar.collapsed{ width:260px; }
-  .sidebar.collapsed .name, .sidebar.collapsed .mini-cal, .sidebar.collapsed .navgroup-label, .sidebar.collapsed .navlabel{ display:block; }
+  .sidebar.collapsed .brand-text, .sidebar.collapsed .mini-cal, .sidebar.collapsed .navgroup-label, .sidebar.collapsed .navlabel{ display:block; }
   .topbar-mobile{
     display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--paper-raised);
     border-bottom:1px solid var(--line); position:sticky; top:0; z-index:15;
@@ -420,7 +422,7 @@ table.data-table tr:hover .row-actions{ opacity:1; }
 </style>
 </head>
 <body>
-<div id="app" role="application" aria-label="Coffer budget planner"></div>
+<div id="app" role="application" aria-label="MoneyFlow budget planner"></div>
 <div class="toast-root" id="toastRoot"></div>
 
 <script>
@@ -428,7 +430,7 @@ table.data-table tr:hover .row-actions{ opacity:1; }
 /* global localStorage */
 
 /* ===== SECTION: CONSTANTS ===== */
-const APP_KEY = "cofferapp.data.v1";
+const APP_KEY = "moneyflowapp.data.v1";
 const SCHEMA_VERSION = 1;
 const CATEGORY_KEYS = ["income","savings","bills","expenses","debtPayments","subscriptions"];
 // Same color mapping as the .badge-<category> CSS classes (transactions, calendar
@@ -484,7 +486,7 @@ function localeTag(){
 const I18N = { en:{}, fr:{}, es:{}, de:{} };
 
 I18N.en.common = {
-  appName:"Coffer", save:"Save", saveAddAnother:"Save & Add Another", saveMarkPaid:"Save & Mark Paid",
+  appName:"MoneyFlow", appTagline:"Ultimate Budget App", save:"Save", saveAddAnother:"Save & Add Another", saveMarkPaid:"Save & Mark Paid",
   cancel:"Cancel", delete:"Delete", edit:"Edit", close:"Close", add:"Add", confirm:"Confirm", yes:"Yes", no:"No",
   search:"Search", filters:"Filters", all:"All", none:"None", loading:"Loading…", today:"Today",
   thisWeek:"This week", thisMonth:"This month", thisYear:"This year", export:"Export", import:"Import",
@@ -501,7 +503,7 @@ I18N.en.common = {
   approx:"approx.", demoBannerText:"Demo — sample data."
 };
 I18N.fr.common = {
-  appName:"Coffer", save:"Enregistrer", saveAddAnother:"Enregistrer et ajouter", saveMarkPaid:"Enregistrer et marquer payé",
+  appName:"MoneyFlow", appTagline:"L'appli budget ultime", save:"Enregistrer", saveAddAnother:"Enregistrer et ajouter", saveMarkPaid:"Enregistrer et marquer payé",
   cancel:"Annuler", delete:"Supprimer", edit:"Modifier", close:"Fermer", add:"Ajouter", confirm:"Confirmer", yes:"Oui", no:"Non",
   search:"Rechercher", filters:"Filtres", all:"Tout", none:"Aucun", loading:"Chargement…", today:"Aujourd'hui",
   thisWeek:"Cette semaine", thisMonth:"Ce mois-ci", thisYear:"Cette année", export:"Exporter", import:"Importer",
@@ -518,7 +520,7 @@ I18N.fr.common = {
   approx:"env.", demoBannerText:"Démo — données d'exemple."
 };
 I18N.es.common = {
-  appName:"Coffer", save:"Guardar", saveAddAnother:"Guardar y añadir otro", saveMarkPaid:"Guardar y marcar pagado",
+  appName:"MoneyFlow", appTagline:"La app de presupuesto definitiva", save:"Guardar", saveAddAnother:"Guardar y añadir otro", saveMarkPaid:"Guardar y marcar pagado",
   cancel:"Cancelar", delete:"Eliminar", edit:"Editar", close:"Cerrar", add:"Añadir", confirm:"Confirmar", yes:"Sí", no:"No",
   search:"Buscar", filters:"Filtros", all:"Todo", none:"Ninguno", loading:"Cargando…", today:"Hoy",
   thisWeek:"Esta semana", thisMonth:"Este mes", thisYear:"Este año", export:"Exportar", import:"Importar",
@@ -535,7 +537,7 @@ I18N.es.common = {
   approx:"aprox.", demoBannerText:"Demo — datos de ejemplo."
 };
 I18N.de.common = {
-  appName:"Coffer", save:"Speichern", saveAddAnother:"Speichern & weiteren hinzufügen", saveMarkPaid:"Speichern & als bezahlt markieren",
+  appName:"MoneyFlow", appTagline:"Die ultimative Budget-App", save:"Speichern", saveAddAnother:"Speichern & weiteren hinzufügen", saveMarkPaid:"Speichern & als bezahlt markieren",
   cancel:"Abbrechen", delete:"Löschen", edit:"Bearbeiten", close:"Schließen", add:"Hinzufügen", confirm:"Bestätigen", yes:"Ja", no:"Nein",
   search:"Suchen", filters:"Filter", all:"Alle", none:"Keine", loading:"Lädt…", today:"Heute",
   thisWeek:"Diese Woche", thisMonth:"Diesen Monat", thisYear:"Dieses Jahr", export:"Exportieren", import:"Importieren",
@@ -1169,49 +1171,49 @@ I18N.de.help = {
 };
 
 I18N.en.guide = {
-  intro:"Coffer keeps every number on your device — nothing is ever uploaded. Here's a quick tour.",
+  intro:"MoneyFlow keeps every number on your device — nothing is ever uploaded. Here's a quick tour.",
   step1Title:"1. Log your money", step1Body:"Add income, bills, and expenses from Calendar, Transactions, or the + button in the header. Recurring items generate their own future occurrences automatically.",
   step2Title:"2. Watch it add up", step2Body:"Dashboard, Monthly Insights and Yearly Overview turn your log into charts, always shown next to their numbers.",
   step3Title:"3. Plan ahead", step3Body:"Use the Debt Payoff planner, Sinking Funds, 50/30/20, and Paycheck view to plan beyond just tracking.",
-  step4Title:"4. Back it up", step4Body:"Your data lives in this browser only. Export a backup regularly from Settings, or point Coffer at a synced folder on Chromium browsers.",
+  step4Title:"4. Back it up", step4Body:"Your data lives in this browser only. Export a backup regularly from Settings, or point MoneyFlow at a synced folder on Chromium browsers.",
   whereToStartTitle:"Where to start", supportTitle:"Need help?", supportBody:"Questions, a bug, or feedback — reach out any time:"
 };
 I18N.fr.guide = {
-  intro:"Coffer garde tous vos chiffres sur votre appareil — rien n'est jamais envoyé en ligne. Voici un tour rapide.",
+  intro:"MoneyFlow garde tous vos chiffres sur votre appareil — rien n'est jamais envoyé en ligne. Voici un tour rapide.",
   step1Title:"1. Enregistrez votre argent", step1Body:"Ajoutez revenus, factures et dépenses depuis le Calendrier, les Transactions, ou le bouton + dans l'en-tête. Les éléments récurrents génèrent leurs occurrences futures automatiquement.",
   step2Title:"2. Suivez l'évolution", step2Body:"Le tableau de bord, l'aperçu mensuel et le bilan annuel transforment votre journal en graphiques, toujours à côté de leurs chiffres.",
   step3Title:"3. Planifiez", step3Body:"Utilisez le plan de remboursement, les cagnottes, le 50/30/20 et la vue par paie pour planifier au-delà du simple suivi.",
-  step4Title:"4. Sauvegardez", step4Body:"Vos données ne vivent que dans ce navigateur. Exportez une sauvegarde régulièrement depuis Paramètres, ou pointez Coffer vers un dossier synchronisé sur les navigateurs Chromium.",
+  step4Title:"4. Sauvegardez", step4Body:"Vos données ne vivent que dans ce navigateur. Exportez une sauvegarde régulièrement depuis Paramètres, ou pointez MoneyFlow vers un dossier synchronisé sur les navigateurs Chromium.",
   whereToStartTitle:"Où commencer", supportTitle:"Besoin d'aide ?", supportBody:"Des questions, un bug, un retour — écrivez-nous quand vous voulez :"
 };
 I18N.es.guide = {
-  intro:"Coffer guarda todos tus datos solo en tu dispositivo — nunca se suben a ningún sitio. Aquí tienes un recorrido rápido.",
+  intro:"MoneyFlow guarda todos tus datos solo en tu dispositivo — nunca se suben a ningún sitio. Aquí tienes un recorrido rápido.",
   step1Title:"1. Registra tu dinero", step1Body:"Añade ingresos, facturas y gastos desde Calendario, Transacciones, o el botón + del encabezado. Los elementos recurrentes generan sus futuras ocurrencias automáticamente.",
   step2Title:"2. Observa cómo se suma", step2Body:"El panel, el resumen mensual y el resumen anual convierten tu registro en gráficos, siempre junto a sus cifras.",
   step3Title:"3. Planifica", step3Body:"Usa el planificador de pago de deudas, los fondos de ahorro, el 50/30/20 y la vista por nómina para planificar más allá del simple seguimiento.",
-  step4Title:"4. Haz copias de seguridad", step4Body:"Tus datos viven solo en este navegador. Exporta una copia de seguridad regularmente desde Ajustes, o apunta Coffer a una carpeta sincronizada en navegadores Chromium.",
+  step4Title:"4. Haz copias de seguridad", step4Body:"Tus datos viven solo en este navegador. Exporta una copia de seguridad regularmente desde Ajustes, o apunta MoneyFlow a una carpeta sincronizada en navegadores Chromium.",
   whereToStartTitle:"Por dónde empezar", supportTitle:"¿Necesitas ayuda?", supportBody:"¿Preguntas, un error o comentarios? Escríbenos cuando quieras:"
 };
 I18N.de.guide = {
-  intro:"Coffer behält alle Zahlen nur auf deinem Gerät — nichts wird jemals hochgeladen. Hier eine kurze Tour.",
+  intro:"MoneyFlow behält alle Zahlen nur auf deinem Gerät — nichts wird jemals hochgeladen. Hier eine kurze Tour.",
   step1Title:"1. Erfasse dein Geld", step1Body:"Füge Einkommen, Rechnungen und Ausgaben über Kalender, Transaktionen oder den +-Button in der Kopfzeile hinzu. Wiederkehrende Posten erzeugen ihre zukünftigen Vorkommen automatisch.",
   step2Title:"2. Verfolge die Summe", step2Body:"Übersicht, Monatsübersicht und Jahresübersicht verwandeln dein Protokoll in Diagramme, immer neben ihren Zahlen.",
   step3Title:"3. Plane voraus", step3Body:"Nutze den Schuldenabbau-Planer, Sparziele, 50/30/20 und die Gehaltsansicht, um mehr als nur zu verfolgen.",
-  step4Title:"4. Sichere deine Daten", step4Body:"Deine Daten leben nur in diesem Browser. Exportiere regelmäßig eine Sicherung über Einstellungen oder verweise Coffer bei Chromium-Browsern auf einen synchronisierten Ordner.",
+  step4Title:"4. Sichere deine Daten", step4Body:"Deine Daten leben nur in diesem Browser. Exportiere regelmäßig eine Sicherung über Einstellungen oder verweise MoneyFlow bei Chromium-Browsern auf einen synchronisierten Ordner.",
   whereToStartTitle:"Wo du anfängst", supportTitle:"Brauchst du Hilfe?", supportBody:"Fragen, ein Fehler oder Feedback — melde dich jederzeit:"
 };
 
 I18N.en.backup = {
   exportJson:"Download full backup (JSON)", importJson:"Restore from backup", exportCsv:"Export transactions (CSV)",
   clearAllConfirm:"Type DELETE to permanently erase all data on this device.", typeToConfirm:"Type DELETE to confirm", confirmWord:"DELETE",
-  importSuccess:"Backup restored.", importError:"That file doesn't look like a Coffer backup.", cleared:"All data cleared.",
-  autoFolderTitle:"Auto-save to a folder", autoFolderBody:"On Chromium browsers you can pick a local folder (ideally one your cloud sync app already watches) and Coffer will keep a backup file there automatically.",
+  importSuccess:"Backup restored.", importError:"That file doesn't look like a MoneyFlow backup.", cleared:"All data cleared.",
+  autoFolderTitle:"Auto-save to a folder", autoFolderBody:"On Chromium browsers you can pick a local folder (ideally one your cloud sync app already watches) and MoneyFlow will keep a backup file there automatically.",
   chooseFolder:"Choose folder", folderNotSupported:"Not supported in this browser — use export/import instead.", folderActive:"Auto-saving to: {name}", stopFolder:"Stop auto-save",
   multiDeviceTitle:"Use the app on multiple devices", onComputer:"On desktop", onPhone:"On phone/tablet",
   computerSteps:[
     "Install Google Drive, OneDrive, or Dropbox and let it finish syncing its folder.",
     "In Settings > Backup & data, click “Choose folder” and pick that synced folder (Chromium browsers only).",
-    "Coffer will now auto-save a backup file into it every time you make a change.",
+    "MoneyFlow will now auto-save a backup file into it every time you make a change.",
     "Before switching devices, check the synced folder shows the latest backup file, not an older one."
   ],
   phoneSteps:[
@@ -1224,14 +1226,14 @@ I18N.en.backup = {
 I18N.fr.backup = {
   exportJson:"Télécharger la sauvegarde complète (JSON)", importJson:"Restaurer depuis une sauvegarde", exportCsv:"Exporter les transactions (CSV)",
   clearAllConfirm:"Tapez SUPPRIMER pour effacer définitivement toutes les données de cet appareil.", typeToConfirm:"Tapez SUPPRIMER pour confirmer", confirmWord:"SUPPRIMER",
-  importSuccess:"Sauvegarde restaurée.", importError:"Ce fichier ne ressemble pas à une sauvegarde Coffer.", cleared:"Toutes les données ont été effacées.",
-  autoFolderTitle:"Sauvegarde automatique dans un dossier", autoFolderBody:"Sur les navigateurs Chromium, vous pouvez choisir un dossier local (idéalement déjà synchronisé) et Coffer y conservera une sauvegarde automatiquement.",
+  importSuccess:"Sauvegarde restaurée.", importError:"Ce fichier ne ressemble pas à une sauvegarde MoneyFlow.", cleared:"Toutes les données ont été effacées.",
+  autoFolderTitle:"Sauvegarde automatique dans un dossier", autoFolderBody:"Sur les navigateurs Chromium, vous pouvez choisir un dossier local (idéalement déjà synchronisé) et MoneyFlow y conservera une sauvegarde automatiquement.",
   chooseFolder:"Choisir un dossier", folderNotSupported:"Non pris en charge par ce navigateur — utilisez export/import à la place.", folderActive:"Sauvegarde automatique vers : {name}", stopFolder:"Arrêter la sauvegarde auto",
   multiDeviceTitle:"Utiliser l'app sur plusieurs appareils", onComputer:"Sur ordinateur", onPhone:"Sur téléphone/tablette",
   computerSteps:[
     "Installez Google Drive, OneDrive ou Dropbox et laissez la synchronisation du dossier se terminer.",
     "Dans Paramètres > Sauvegarde et données, cliquez sur « Choisir un dossier » et sélectionnez ce dossier synchronisé (navigateurs Chromium uniquement).",
-    "Coffer enregistrera désormais automatiquement un fichier de sauvegarde dedans à chaque modification.",
+    "MoneyFlow enregistrera désormais automatiquement un fichier de sauvegarde dedans à chaque modification.",
     "Avant de changer d'appareil, vérifiez que le dossier synchronisé affiche bien la dernière sauvegarde, pas une ancienne."
   ],
   phoneSteps:[
@@ -1244,14 +1246,14 @@ I18N.fr.backup = {
 I18N.es.backup = {
   exportJson:"Descargar copia de seguridad completa (JSON)", importJson:"Restaurar desde copia de seguridad", exportCsv:"Exportar transacciones (CSV)",
   clearAllConfirm:"Escribe DELETE para borrar permanentemente todos los datos de este dispositivo.", typeToConfirm:"Escribe DELETE para confirmar", confirmWord:"DELETE",
-  importSuccess:"Copia de seguridad restaurada.", importError:"Ese archivo no parece una copia de seguridad de Coffer.", cleared:"Todos los datos han sido borrados.",
-  autoFolderTitle:"Guardado automático en una carpeta", autoFolderBody:"En navegadores Chromium puedes elegir una carpeta local (idealmente una que tu app de sincronización ya vigile) y Coffer guardará allí una copia de seguridad automáticamente.",
+  importSuccess:"Copia de seguridad restaurada.", importError:"Ese archivo no parece una copia de seguridad de MoneyFlow.", cleared:"Todos los datos han sido borrados.",
+  autoFolderTitle:"Guardado automático en una carpeta", autoFolderBody:"En navegadores Chromium puedes elegir una carpeta local (idealmente una que tu app de sincronización ya vigile) y MoneyFlow guardará allí una copia de seguridad automáticamente.",
   chooseFolder:"Elegir carpeta", folderNotSupported:"No compatible con este navegador — usa exportar/importar en su lugar.", folderActive:"Guardado automático en: {name}", stopFolder:"Detener guardado automático",
   multiDeviceTitle:"Usar la app en varios dispositivos", onComputer:"En ordenador", onPhone:"En teléfono/tableta",
   computerSteps:[
     "Instala Google Drive, OneDrive o Dropbox y deja que termine de sincronizar su carpeta.",
     "En Ajustes > Copia de seguridad y datos, haz clic en «Elegir carpeta» y selecciona esa carpeta sincronizada (solo navegadores Chromium).",
-    "Coffer guardará automáticamente un archivo de copia de seguridad ahí cada vez que hagas un cambio.",
+    "MoneyFlow guardará automáticamente un archivo de copia de seguridad ahí cada vez que hagas un cambio.",
     "Antes de cambiar de dispositivo, comprueba que la carpeta sincronizada muestra la última copia de seguridad, no una antigua."
   ],
   phoneSteps:[
@@ -1264,14 +1266,14 @@ I18N.es.backup = {
 I18N.de.backup = {
   exportJson:"Vollständige Sicherung herunterladen (JSON)", importJson:"Aus Sicherung wiederherstellen", exportCsv:"Transaktionen exportieren (CSV)",
   clearAllConfirm:"Gib LÖSCHEN ein, um alle Daten auf diesem Gerät dauerhaft zu löschen.", typeToConfirm:"Gib LÖSCHEN ein, um zu bestätigen", confirmWord:"LÖSCHEN",
-  importSuccess:"Sicherung wiederhergestellt.", importError:"Diese Datei sieht nicht wie eine Coffer-Sicherung aus.", cleared:"Alle Daten wurden gelöscht.",
-  autoFolderTitle:"Automatisches Speichern in einem Ordner", autoFolderBody:"In Chromium-Browsern kannst du einen lokalen Ordner wählen (idealerweise einen, den deine Cloud-Sync-App bereits überwacht), und Coffer speichert dort automatisch eine Sicherung.",
+  importSuccess:"Sicherung wiederhergestellt.", importError:"Diese Datei sieht nicht wie eine MoneyFlow-Sicherung aus.", cleared:"Alle Daten wurden gelöscht.",
+  autoFolderTitle:"Automatisches Speichern in einem Ordner", autoFolderBody:"In Chromium-Browsern kannst du einen lokalen Ordner wählen (idealerweise einen, den deine Cloud-Sync-App bereits überwacht), und MoneyFlow speichert dort automatisch eine Sicherung.",
   chooseFolder:"Ordner wählen", folderNotSupported:"In diesem Browser nicht unterstützt — nutze stattdessen Export/Import.", folderActive:"Automatische Speicherung nach: {name}", stopFolder:"Automatisches Speichern stoppen",
   multiDeviceTitle:"Die App auf mehreren Geräten nutzen", onComputer:"Am Computer", onPhone:"Am Smartphone/Tablet",
   computerSteps:[
     "Installiere Google Drive, OneDrive oder Dropbox und lass die Synchronisierung des Ordners abschließen.",
     "Klicke unter Einstellungen > Sicherung & Daten auf „Ordner wählen“ und wähle diesen synchronisierten Ordner (nur Chromium-Browser).",
-    "Coffer speichert nun bei jeder Änderung automatisch eine Sicherungsdatei darin.",
+    "MoneyFlow speichert nun bei jeder Änderung automatisch eine Sicherungsdatei darin.",
     "Prüfe vor dem Gerätewechsel, ob der synchronisierte Ordner die neueste Sicherung zeigt und nicht eine ältere."
   ],
   phoneSteps:[
@@ -1285,34 +1287,34 @@ I18N.de.backup = {
 I18N.en.license = {
   title:"License", statusUnlocked:"Full version unlocked", statusDemo:"Demo — sample data",
   enterCode:"Enter your activation code", codePlaceholder:"COFA-B2C3-D4E5-F607", unlock:"Unlock",
-  invalidCode:"That code isn't valid. Double-check for typos.", unlockedMessage:"Unlocked! Thanks for supporting Coffer.",
-  whereToBuy:"Purchased on Etsy? Your activation code is included with your order.", demoNote:"Coffer is fully usable right now — an activation code just removes the demo label and sample data marking, permanently, on this device.",
-  previewDayOne:"Preview day 1", previewDayOneConfirm:"This clears the sample transactions, accounts, debts and funds so you can see Coffer completely empty — like a brand new install. Your language, theme and other settings stay as they are. You can bring the sample data back any time from here.", previewDayOneDone:"Sample data cleared.",
-  restoreDemo:"Restore sample data", restoreDemoConfirm:"This replaces your current empty state with a full year of sample data again, so you can preview Coffer pre-filled.", restoreDemoDone:"Sample data restored."
+  invalidCode:"That code isn't valid. Double-check for typos.", unlockedMessage:"Unlocked! Thanks for supporting MoneyFlow.",
+  whereToBuy:"Purchased on Etsy? Your activation code is included with your order.", demoNote:"MoneyFlow is fully usable right now — an activation code just removes the demo label and sample data marking, permanently, on this device.",
+  previewDayOne:"Preview day 1", previewDayOneConfirm:"This clears the sample transactions, accounts, debts and funds so you can see MoneyFlow completely empty — like a brand new install. Your language, theme and other settings stay as they are. You can bring the sample data back any time from here.", previewDayOneDone:"Sample data cleared.",
+  restoreDemo:"Restore sample data", restoreDemoConfirm:"This replaces your current empty state with a full year of sample data again, so you can preview MoneyFlow pre-filled.", restoreDemoDone:"Sample data restored."
 };
 I18N.fr.license = {
   title:"Licence", statusUnlocked:"Version complète débloquée", statusDemo:"Démo — données d'exemple",
   enterCode:"Entrez votre code d'activation", codePlaceholder:"COFA-B2C3-D4E5-F607", unlock:"Débloquer",
-  invalidCode:"Ce code n'est pas valide. Vérifiez les fautes de frappe.", unlockedMessage:"Débloqué ! Merci de soutenir Coffer.",
-  whereToBuy:"Acheté sur Etsy ? Votre code d'activation est inclus avec votre commande.", demoNote:"Coffer est pleinement utilisable dès maintenant — un code d'activation retire simplement, de façon permanente sur cet appareil, la mention démo et les données d'exemple.",
-  previewDayOne:"Prévisualiser le jour 1", previewDayOneConfirm:"Cela efface les transactions, comptes, dettes et cagnottes d'exemple pour voir Coffer complètement vide — comme une toute nouvelle installation. Votre langue, votre thème et vos autres réglages restent inchangés. Vous pourrez retrouver les données d'exemple à tout moment depuis ici.", previewDayOneDone:"Données d'exemple effacées.",
-  restoreDemo:"Restaurer les données d'exemple", restoreDemoConfirm:"Cela remplace l'état vide actuel par une année complète de données d'exemple, pour prévisualiser Coffer préremplie.", restoreDemoDone:"Données d'exemple restaurées."
+  invalidCode:"Ce code n'est pas valide. Vérifiez les fautes de frappe.", unlockedMessage:"Débloqué ! Merci de soutenir MoneyFlow.",
+  whereToBuy:"Acheté sur Etsy ? Votre code d'activation est inclus avec votre commande.", demoNote:"MoneyFlow est pleinement utilisable dès maintenant — un code d'activation retire simplement, de façon permanente sur cet appareil, la mention démo et les données d'exemple.",
+  previewDayOne:"Prévisualiser le jour 1", previewDayOneConfirm:"Cela efface les transactions, comptes, dettes et cagnottes d'exemple pour voir MoneyFlow complètement vide — comme une toute nouvelle installation. Votre langue, votre thème et vos autres réglages restent inchangés. Vous pourrez retrouver les données d'exemple à tout moment depuis ici.", previewDayOneDone:"Données d'exemple effacées.",
+  restoreDemo:"Restaurer les données d'exemple", restoreDemoConfirm:"Cela remplace l'état vide actuel par une année complète de données d'exemple, pour prévisualiser MoneyFlow préremplie.", restoreDemoDone:"Données d'exemple restaurées."
 };
 I18N.es.license = {
   title:"Licencia", statusUnlocked:"Versión completa desbloqueada", statusDemo:"Demo — datos de ejemplo",
   enterCode:"Introduce tu código de activación", codePlaceholder:"COFA-B2C3-D4E5-F607", unlock:"Desbloquear",
-  invalidCode:"Ese código no es válido. Revisa si hay errores.", unlockedMessage:"¡Desbloqueado! Gracias por apoyar a Coffer.",
-  whereToBuy:"¿Comprado en Etsy? Tu código de activación viene incluido con tu pedido.", demoNote:"Coffer ya es totalmente utilizable — un código de activación solo retira, de forma permanente en este dispositivo, la etiqueta de demo y el marcado de datos de ejemplo.",
-  previewDayOne:"Vista previa del día 1", previewDayOneConfirm:"Esto borra las transacciones, cuentas, deudas y fondos de ejemplo para que veas Coffer completamente vacío, como una instalación nueva. Tu idioma, tema y demás ajustes se mantienen. Podrás recuperar los datos de ejemplo en cualquier momento desde aquí.", previewDayOneDone:"Datos de ejemplo borrados.",
-  restoreDemo:"Restaurar datos de ejemplo", restoreDemoConfirm:"Esto reemplaza el estado vacío actual por un año completo de datos de ejemplo de nuevo, para previsualizar Coffer con contenido.", restoreDemoDone:"Datos de ejemplo restaurados."
+  invalidCode:"Ese código no es válido. Revisa si hay errores.", unlockedMessage:"¡Desbloqueado! Gracias por apoyar a MoneyFlow.",
+  whereToBuy:"¿Comprado en Etsy? Tu código de activación viene incluido con tu pedido.", demoNote:"MoneyFlow ya es totalmente utilizable — un código de activación solo retira, de forma permanente en este dispositivo, la etiqueta de demo y el marcado de datos de ejemplo.",
+  previewDayOne:"Vista previa del día 1", previewDayOneConfirm:"Esto borra las transacciones, cuentas, deudas y fondos de ejemplo para que veas MoneyFlow completamente vacío, como una instalación nueva. Tu idioma, tema y demás ajustes se mantienen. Podrás recuperar los datos de ejemplo en cualquier momento desde aquí.", previewDayOneDone:"Datos de ejemplo borrados.",
+  restoreDemo:"Restaurar datos de ejemplo", restoreDemoConfirm:"Esto reemplaza el estado vacío actual por un año completo de datos de ejemplo de nuevo, para previsualizar MoneyFlow con contenido.", restoreDemoDone:"Datos de ejemplo restaurados."
 };
 I18N.de.license = {
   title:"Lizenz", statusUnlocked:"Vollversion freigeschaltet", statusDemo:"Demo — Beispieldaten",
   enterCode:"Gib deinen Aktivierungscode ein", codePlaceholder:"COFA-B2C3-D4E5-F607", unlock:"Freischalten",
-  invalidCode:"Dieser Code ist ungültig. Auf Tippfehler prüfen.", unlockedMessage:"Freigeschaltet! Danke, dass du Coffer unterstützt.",
-  whereToBuy:"Bei Etsy gekauft? Dein Aktivierungscode liegt deiner Bestellung bei.", demoNote:"Coffer ist schon jetzt voll nutzbar — ein Aktivierungscode entfernt nur dauerhaft auf diesem Gerät die Demo-Kennzeichnung und die Beispieldaten-Markierung.",
-  previewDayOne:"Tag 1 als Vorschau ansehen", previewDayOneConfirm:"Dadurch werden die Beispiel-Transaktionen, -Konten, -Schulden und -Sparziele gelöscht, damit du Coffer komplett leer siehst — wie eine brandneue Installation. Sprache, Design und andere Einstellungen bleiben erhalten. Du kannst die Beispieldaten von hier aus jederzeit wiederherstellen.", previewDayOneDone:"Beispieldaten gelöscht.",
-  restoreDemo:"Beispieldaten wiederherstellen", restoreDemoConfirm:"Dadurch wird der aktuelle leere Zustand wieder durch ein volles Jahr an Beispieldaten ersetzt, damit du Coffer vorausgefüllt sehen kannst.", restoreDemoDone:"Beispieldaten wiederhergestellt."
+  invalidCode:"Dieser Code ist ungültig. Auf Tippfehler prüfen.", unlockedMessage:"Freigeschaltet! Danke, dass du MoneyFlow unterstützt.",
+  whereToBuy:"Bei Etsy gekauft? Dein Aktivierungscode liegt deiner Bestellung bei.", demoNote:"MoneyFlow ist schon jetzt voll nutzbar — ein Aktivierungscode entfernt nur dauerhaft auf diesem Gerät die Demo-Kennzeichnung und die Beispieldaten-Markierung.",
+  previewDayOne:"Tag 1 als Vorschau ansehen", previewDayOneConfirm:"Dadurch werden die Beispiel-Transaktionen, -Konten, -Schulden und -Sparziele gelöscht, damit du MoneyFlow komplett leer siehst — wie eine brandneue Installation. Sprache, Design und andere Einstellungen bleiben erhalten. Du kannst die Beispieldaten von hier aus jederzeit wiederherstellen.", previewDayOneDone:"Beispieldaten gelöscht.",
+  restoreDemo:"Beispieldaten wiederherstellen", restoreDemoConfirm:"Dadurch wird der aktuelle leere Zustand wieder durch ein volles Jahr an Beispieldaten ersetzt, damit du MoneyFlow vorausgefüllt sehen kannst.", restoreDemoDone:"Beispieldaten wiederhergestellt."
 };
 
 function t(key, params){
@@ -1377,7 +1379,7 @@ const DataLayer = (function(){
       if(!raw) return null;
       const parsed = JSON.parse(raw);
       return migrate(parsed);
-    }catch(e){ console.error("Coffer: failed to read saved data", e); return null; }
+    }catch(e){ console.error("MoneyFlow: failed to read saved data", e); return null; }
   }
   function migrate(data){
     if(!data.schemaVersion) data.schemaVersion = 1;
@@ -1390,7 +1392,7 @@ const DataLayer = (function(){
       localStorage.setItem(APP_KEY, JSON.stringify(data));
       return true;
     }catch(e){
-      console.error("Coffer: failed to save", e);
+      console.error("MoneyFlow: failed to save", e);
       toast(t("common.error")+": "+(e && e.message ? e.message : "storage"), "error");
       return false;
     }
@@ -1529,9 +1531,9 @@ function confirmDialog(message, onYes){
 }
 
 /* ===== SECTION: TEST HARNESS =====
-   Run window.__COFFER_TESTS__.run() from the browser console to execute
+   Run window.__MONEYFLOW_TESTS__.run() from the browser console to execute
    in-file sanity checks against the data layer (no build tooling needed). */
-const __COFFER_TESTS__ = (function(){
+const __MONEYFLOW_TESTS__ = (function(){
   const tests = [];
   function test(name, fn){ tests.push({name, fn}); }
   function run(){
@@ -1540,14 +1542,14 @@ const __COFFER_TESTS__ = (function(){
       try{ fn(assertEqual, assertTrue); console.log("%cPASS","color:green", name); pass++; }
       catch(e){ console.error("%cFAIL","color:red", name, e); fail++; }
     });
-    console.log(`Coffer tests: ${pass} passed, ${fail} failed (of ${tests.length})`);
+    console.log(`MoneyFlow tests: ${pass} passed, ${fail} failed (of ${tests.length})`);
     return { pass, fail };
   }
   function assertEqual(a,b,msg){ if(JSON.stringify(a)!==JSON.stringify(b)) throw new Error((msg||"assertEqual failed")+" -- got "+JSON.stringify(a)+" expected "+JSON.stringify(b)); }
   function assertTrue(cond,msg){ if(!cond) throw new Error(msg||"assertTrue failed"); }
   return { test, run };
 })();
-window.__COFFER_TESTS__ = __COFFER_TESTS__;
+window.__MONEYFLOW_TESTS__ = __MONEYFLOW_TESTS__;
 
 /* ===== SECTION: SELECTORS (derived data) =====
    Placeholder balance/overdue math for the shell; the full transaction
@@ -1647,8 +1649,11 @@ function renderShell(){
 
   const sidebar = h("nav.sidebar"+(sidebarCollapsed?".collapsed":"")+(sidebarMobileOpen?".mobile-open":""), { id:"sidebarEl" }, [
     h("div.sidebar-brand", {}, [
-      h("div.mark", {}, ["C"]),
-      h("div.name", {}, [t("common.appName")]),
+      h("div.mark", {}, ["M"]),
+      h("div.brand-text", {}, [
+        h("div.name", {}, [t("common.appName")]),
+        h("div.tagline", {}, [t("common.appTagline")])
+      ]),
       h("button.sidebar-toggle", { onclick:()=>{ sidebarCollapsed=!sidebarCollapsed; renderShell(); }, title:t("shell.menuToggle") }, ["⟨"])
     ]),
     renderMiniCalendar(),
@@ -1664,7 +1669,7 @@ function renderShell(){
 
   const topbarMobile = h("div.topbar-mobile", {}, [
     h("button.sidebar-toggle-mobile", { onclick:()=>{ sidebarMobileOpen=!sidebarMobileOpen; renderShell(); } }, ["☰"]),
-    h("div.mark", {}, ["C"]), h("strong",{},[t("common.appName")])
+    h("div.mark", {}, ["M"]), h("strong",{},[t("common.appName")])
   ]);
 
   const main = h("div.main", {}, [
@@ -1957,44 +1962,44 @@ function findLikelyDuplicates(state, candidate, excludeId){
   });
 }
 
-__COFFER_TESTS__.test("generateOccurrenceDates: one-time returns single date", (eq)=>{
+__MONEYFLOW_TESTS__.test("generateOccurrenceDates: one-time returns single date", (eq)=>{
   eq(generateOccurrenceDates("2026-01-05","oneTime",null,"2027-01-05"), ["2026-01-05"]);
 });
-__COFFER_TESTS__.test("generateOccurrenceDates: monthly expands across months", (eq)=>{
+__MONEYFLOW_TESTS__.test("generateOccurrenceDates: monthly expands across months", (eq)=>{
   const dates = generateOccurrenceDates("2026-01-31","monthly",null,"2026-04-30");
   eq(dates, ["2026-01-31","2026-02-28","2026-03-28","2026-04-28"]);
 });
-__COFFER_TESTS__.test("generateOccurrenceDates: respects endDate before horizon", (eq)=>{
+__MONEYFLOW_TESTS__.test("generateOccurrenceDates: respects endDate before horizon", (eq)=>{
   const dates = generateOccurrenceDates("2026-01-01","weekly","2026-01-22","2027-01-01");
   eq(dates, ["2026-01-01","2026-01-08","2026-01-15","2026-01-22"]);
 });
-__COFFER_TESTS__.test("addTransactionToState: materializes a monthly series", (eq)=>{
+__MONEYFLOW_TESTS__.test("addTransactionToState: materializes a monthly series", (eq)=>{
   const state = defaultState();
   const created = addTransactionToState(state, Object.assign(newTransactionBase(),{ name:"Rent", amount:1000, dueDate:"2026-01-01", recurrence:{frequency:"monthly", endDate:"2026-04-01"} }));
   eq(created.length, 4);
   eq(created.every(c=>c.seriesId===created[0].seriesId), true);
 });
-__COFFER_TESTS__.test("deleteOccurrence removes only one record", (eq)=>{
+__MONEYFLOW_TESTS__.test("deleteOccurrence removes only one record", (eq)=>{
   const state = defaultState();
   const created = addTransactionToState(state, Object.assign(newTransactionBase(),{ name:"Gym", amount:20, dueDate:"2026-01-01", recurrence:{frequency:"monthly", endDate:"2026-03-01"} }));
   deleteOccurrence(state, created[1].id);
   eq(state.transactions.length, 2);
 });
-__COFFER_TESTS__.test("deleteSeries removes every occurrence sharing seriesId", (eq)=>{
+__MONEYFLOW_TESTS__.test("deleteSeries removes every occurrence sharing seriesId", (eq)=>{
   const state = defaultState();
   addTransactionToState(state, Object.assign(newTransactionBase(),{ name:"Gym", amount:20, dueDate:"2026-01-01", recurrence:{frequency:"monthly", endDate:"2026-03-01"} }));
   const seriesId = state.transactions[0].seriesId;
   deleteSeries(state, seriesId);
   eq(state.transactions.length, 0);
 });
-__COFFER_TESTS__.test("computeAccountBalance sums only paid transactions", (eq)=>{
+__MONEYFLOW_TESTS__.test("computeAccountBalance sums only paid transactions", (eq)=>{
   const state = defaultState();
   state.accounts.push({ id:"a1", name:"Checking", type:"checking", startingBalance:100 });
   state.transactions.push({ id:"t1", category:"income", accountId:"a1", amount:50, status:"paid", dueDate:"2026-01-01", name:"x", recurrence:{frequency:"oneTime"} });
   state.transactions.push({ id:"t2", category:"expenses", accountId:"a1", amount:30, status:"planned", dueDate:"2026-01-05", name:"y", recurrence:{frequency:"oneTime"} });
   eq(computeAccountBalance(state,"a1"), 150);
 });
-__COFFER_TESTS__.test("findLikelyDuplicates flags same name+amount within window", (eq)=>{
+__MONEYFLOW_TESTS__.test("findLikelyDuplicates flags same name+amount within window", (eq)=>{
   const state = defaultState();
   state.transactions.push({ id:"t1", category:"expenses", name:"Groceries", amount:40, dueDate:"2026-03-10", recurrence:{frequency:"oneTime"} });
   const dupes = findLikelyDuplicates(state, { category:"expenses", name:"groceries", amount:40, dueDate:"2026-03-12" });
@@ -2327,7 +2332,7 @@ function downloadTextFile(filename, text, mime){
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(url), 2000);
 }
-function exportJsonBackup(){ downloadTextFile("coffer-backup-"+todayISO()+".json", JSON.stringify(Store.get(), null, 2)); }
+function exportJsonBackup(){ downloadTextFile("moneyflow-backup-"+todayISO()+".json", JSON.stringify(Store.get(), null, 2)); }
 function csvEscape(v){ const s=String(v==null?"":v); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }
 function exportCsvBackup(){
   const state = Store.get();
@@ -2336,7 +2341,7 @@ function exportCsvBackup(){
     const acct = state.accounts.find(a=>a.id===tx.accountId);
     rows.push([tx.dueDate, tx.name, tx.category, acct?acct.name:"", tx.amount, deriveStatus(tx), tx.priority, tx.recurrence.frequency, tx.notes||""]);
   });
-  downloadTextFile("coffer-transactions-"+todayISO()+".csv", rows.map(r=>r.map(csvEscape).join(",")).join("\n"), "text/csv");
+  downloadTextFile("moneyflow-transactions-"+todayISO()+".csv", rows.map(r=>r.map(csvEscape).join(",")).join("\n"), "text/csv");
 }
 function normalizeImportedState(obj){
   const base = defaultState();
@@ -2381,7 +2386,7 @@ function openClearAllModal(){
   openModal({ title:t("common.clearAll"), body, footer:[ h("button.btn", { onclick:()=>closeModal() }, [t("common.cancel")]), btn ] });
 }
 
-/** Lets a prospect see Coffer genuinely empty without losing the option to
+/** Lets a prospect see MoneyFlow genuinely empty without losing the option to
  *  bring the pre-filled demo back — same reset logic as Clear All Data,
  *  but isDemo stays true (paired with restoreDemoData below). */
 function resetToEmptyDemo(){
@@ -2410,7 +2415,7 @@ let activeDirHandle = null;
 function fsAccessSupported(){ return typeof window.showDirectoryPicker === "function"; }
 function idbOpen(){
   return new Promise((resolve,reject)=>{
-    const req = indexedDB.open("cofferapp-fs", 1);
+    const req = indexedDB.open("moneyflowapp-fs", 1);
     req.onupgradeneeded = ()=> req.result.createObjectStore("handles");
     req.onsuccess = ()=> resolve(req.result);
     req.onerror = ()=> reject(req.error);
@@ -2439,11 +2444,11 @@ async function writeAutoFolderBackup(){
   try{
     const perm = await activeDirHandle.queryPermission({ mode:"readwrite" });
     if(perm!=="granted") return;
-    const fh = await activeDirHandle.getFileHandle("coffer-backup.json", { create:true });
+    const fh = await activeDirHandle.getFileHandle("moneyflow-backup.json", { create:true });
     const writable = await fh.createWritable();
     await writable.write(JSON.stringify(Store.get(), null, 2));
     await writable.close();
-  }catch(e){ console.warn("Coffer: auto-folder write failed", e); }
+  }catch(e){ console.warn("MoneyFlow: auto-folder write failed", e); }
 }
 async function tryReattachAutoFolder(){
   if(!fsAccessSupported()) return;
@@ -2956,13 +2961,13 @@ function simulateDebtPayoff(debts, strategy, extraBudget, customOrder){
   const totalInterest = Object.values(perDebt).reduce((s,d)=>s+d.totalInterest,0);
   return { perDebt: order.map(d=>perDebt[d.id]), totalMonths, totalInterest, payoffDate: addMonths(todayISO(), totalMonths) };
 }
-__COFFER_TESTS__.test("simulateDebtPayoff: snowball pays off smaller balance first", (eq)=>{
+__MONEYFLOW_TESTS__.test("simulateDebtPayoff: snowball pays off smaller balance first", (eq)=>{
   const debts = [ {id:"a",name:"A",balance:1000,apr:0,minimumPayment:50}, {id:"b",name:"B",balance:200,apr:0,minimumPayment:20} ];
   const res = simulateDebtPayoff(debts, "snowball", 100);
   eq(res.perDebt[0].id, "b");
   eq(res.perDebt[0].monthsToPayoff < res.perDebt[1].monthsToPayoff, true);
 });
-__COFFER_TESTS__.test("simulateDebtPayoff: zero debts returns zero timeline", (eq)=>{
+__MONEYFLOW_TESTS__.test("simulateDebtPayoff: zero debts returns zero timeline", (eq)=>{
   const res = simulateDebtPayoff([], "snowball", 50);
   eq(res.totalMonths, 0);
   eq(res.totalInterest, 0);
@@ -3491,9 +3496,9 @@ function isValidLicenseCode(raw){
 }
 /** Produces a valid code from any seed text. Exposed on window for the
  *  (non-existent) order-fulfillment process to call, and for manual
- *  testing: window.__COFFER_LICENSE__.generateCode("anything"). */
+ *  testing: window.__MONEYFLOW_LICENSE__.generateCode("anything"). */
 function generateLicenseCode(seedText){
-  const seed = licenseNormalize(seedText || uid("coffer"));
+  const seed = licenseNormalize(seedText || uid("moneyflow"));
   const payload = (seed+"COFFERPADXXXX").slice(0,12);
   const full = payload + licenseChecksumChar(payload);
   return full.match(/.{1,4}/g).join("-");
@@ -3502,13 +3507,13 @@ function formatLicenseCodeInput(raw){
   const norm = licenseNormalize(raw).slice(0,13);
   return norm.match(/.{1,4}/g) ? norm.match(/.{1,4}/g).join("-") : norm;
 }
-window.__COFFER_LICENSE__ = { isValidLicenseCode, generateLicenseCode };
+window.__MONEYFLOW_LICENSE__ = { isValidLicenseCode, generateLicenseCode };
 
-__COFFER_TESTS__.test("license: a generated code validates", (eq)=>{
+__MONEYFLOW_TESTS__.test("license: a generated code validates", (eq)=>{
   const code = generateLicenseCode("order-12345");
   eq(isValidLicenseCode(code), true);
 });
-__COFFER_TESTS__.test("license: a mistyped code fails validation", (eq)=>{
+__MONEYFLOW_TESTS__.test("license: a mistyped code fails validation", (eq)=>{
   const code = generateLicenseCode("order-12345");
   const mistyped = code.slice(0,-1) + (code.slice(-1)==="9"?"8":"9");
   eq(isValidLicenseCode(mistyped), false);
@@ -3548,8 +3553,6 @@ function renderLicensePanel(state){
   ]);
 }
 
-/* ===== SECTION: SECTION_INSERT_POINT ===== */
-window.__COFFER_BOOT_PLACEHOLDER__ = true;
 </script>
 </body>
 </html>

@@ -268,6 +268,10 @@ table{ border-collapse:collapse; width:100%; }
 
 .ledger-rule{ border:0; border-top:1px solid var(--line); margin:12px 0; }
 
+details.card > summary{ cursor:pointer; font-family:var(--font-serif); font-weight:600; font-size:15.5px; }
+details.card > summary::marker{ color:var(--violet); }
+details.card h4{ font-size:12.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-faint); margin:10px 0 4px; }
+
 .field{ margin-bottom:12px; }
 .field label{ display:block; font-size:12px; font-weight:700; color:var(--ink-soft); margin-bottom:4px; text-transform:uppercase; letter-spacing:.03em; }
 .field .hint{ font-size:11.5px; color:var(--ink-faint); margin-top:3px; }
@@ -288,6 +292,17 @@ input[type=checkbox]{ accent-color:var(--violet); width:15px; height:15px; }
   border-radius:50%; border:1px solid var(--violet); color:var(--violet); font-size:10px;
   font-weight:700; cursor:help; margin-left:4px; vertical-align:middle;
 }
+/* Reopenable per-page help button (distinct from the inline field-level
+   .help-icon above): a real <button>, bigger for tappability, always visible. */
+.help-icon-btn{
+  display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px;
+  border-radius:50%; border:1.5px solid var(--violet); color:var(--violet); font-size:12.5px;
+  font-weight:700; cursor:pointer; margin-left:8px; vertical-align:middle; background:none; flex:0 0 auto;
+}
+.help-icon-btn:hover{ background:var(--violet-tint); }
+.help-steps{ display:flex; flex-direction:column; gap:12px; }
+.help-step h4{ font-size:13.5px; margin:0 0 3px; color:var(--violet); }
+.help-step p{ margin:0; font-size:13px; color:var(--ink-soft); }
 
 .badge{ display:inline-flex; align-items:center; padding:2px 9px; border-radius:20px; font-size:11px; font-weight:700; }
 .badge-income{ background:var(--good-tint); color:var(--good); }
@@ -414,10 +429,16 @@ table.data-table tr:hover .row-actions{ opacity:1; }
 const APP_KEY = "cofferapp.data.v1";
 const SCHEMA_VERSION = 1;
 const CATEGORY_KEYS = ["income","savings","bills","expenses","debtPayments","subscriptions"];
+// Same color mapping as the .badge-<category> CSS classes (transactions, calendar
+// chips, charts) — reused here rather than introducing separate category colors.
+const CATEGORY_COLOR_VAR = { income:"good", savings:"pine", bills:"gold", expenses:"rust", debtPayments:"bad", subscriptions:"slate" };
 const ACCOUNT_TYPES = ["checking","savings","cash","creditCard"];
 const RECUR_FREQS = ["oneTime","daily","weekly","biweekly","monthly","every2months","quarterly","yearly"];
 const PRIORITY_COUNT = 5;
 const LANGS = ["en","fr","es","de"];
+// TODO: replace with the real support contact before this app is sold — shown
+// on the Quick Start Guide's "Need help?" block. Set to "" to hide that block.
+const SUPPORT_CONTACT_EMAIL = "support@coffer-app.example";
 
 /* ===== SECTION: UTILITIES ===== */
 function uid(prefix){ return (prefix||"id")+"_"+Math.random().toString(36).slice(2,10)+Date.now().toString(36); }
@@ -476,7 +497,7 @@ I18N.en.common = {
   custom:"Custom", other:"Other", noData:"Nothing here yet.", getStarted:"Get started",
   helpDismiss:"Don't show this again", learnMore:"Learn more", back:"Back", month:"Month", year:"Year",
   clearAll:"Clear all data", areYouSure:"Are you sure?", cannotBeUndone:"This cannot be undone.",
-  approx:"approx."
+  approx:"approx.", demoBannerText:"Demo — sample data."
 };
 I18N.fr.common = {
   appName:"Coffer", save:"Enregistrer", saveAddAnother:"Enregistrer et ajouter", saveMarkPaid:"Enregistrer et marquer payé",
@@ -493,7 +514,7 @@ I18N.fr.common = {
   custom:"Personnalisé", other:"Autre", noData:"Rien ici pour l'instant.", getStarted:"Commencer",
   helpDismiss:"Ne plus afficher", learnMore:"En savoir plus", back:"Retour", month:"Mois", year:"Année",
   clearAll:"Effacer toutes les données", areYouSure:"Êtes-vous sûr ?", cannotBeUndone:"Action irréversible.",
-  approx:"env."
+  approx:"env.", demoBannerText:"Démo — données d'exemple."
 };
 I18N.es.common = {
   appName:"Coffer", save:"Guardar", saveAddAnother:"Guardar y añadir otro", saveMarkPaid:"Guardar y marcar pagado",
@@ -510,7 +531,7 @@ I18N.es.common = {
   custom:"Personalizado", other:"Otro", noData:"Aún no hay nada aquí.", getStarted:"Empezar",
   helpDismiss:"No volver a mostrar", learnMore:"Saber más", back:"Atrás", month:"Mes", year:"Año",
   clearAll:"Borrar todos los datos", areYouSure:"¿Estás seguro?", cannotBeUndone:"Esto no se puede deshacer.",
-  approx:"aprox."
+  approx:"aprox.", demoBannerText:"Demo — datos de ejemplo."
 };
 I18N.de.common = {
   appName:"Coffer", save:"Speichern", saveAddAnother:"Speichern & weiteren hinzufügen", saveMarkPaid:"Speichern & als bezahlt markieren",
@@ -527,7 +548,7 @@ I18N.de.common = {
   custom:"Benutzerdefiniert", other:"Andere", noData:"Hier ist noch nichts.", getStarted:"Loslegen",
   helpDismiss:"Nicht mehr anzeigen", learnMore:"Mehr erfahren", back:"Zurück", month:"Monat", year:"Jahr",
   clearAll:"Alle Daten löschen", areYouSure:"Bist du sicher?", cannotBeUndone:"Dies kann nicht rückgängig gemacht werden.",
-  approx:"ca."
+  approx:"ca.", demoBannerText:"Demo — Beispieldaten."
 };
 
 I18N.en.nav = { dashboard:"Dashboard", calendar:"Calendar", transactions:"Transactions", accounts:"Accounts & Cards",
@@ -866,69 +887,284 @@ I18N.de.nospend = {
   explain:"Ein Tag zählt als ausgabenfrei, wenn an diesem Tag keine bezahlte Ausgaben-Transaktion datiert ist.", ofDaysSoFar:"von {n} Tagen bisher"
 };
 
+/* Each route's help entry is an array of {title, body} steps (rendered by
+   showHelp) instead of a single paragraph — concrete, numbered actions for
+   that exact screen. dontShowAgain/gotIt stay flat strings, used by t(). */
 I18N.en.help = {
-  dontShowAgain:"Don't show this again", gotIt:"Got it",
-  dashboard:"Your dashboard summarizes the whole year at a glance: stat tiles up top, then four charts each paired with their numbers below.",
-  calendar:"Every planned and paid transaction shows up here as a colored chip. Drag a chip to reschedule it, double-click an empty day to add one, or click a chip for quick actions.",
-  transactions:"The full list of every transaction, with filters for status, category, priority, account, month and year.",
-  accounts:"Add your bank accounts and cards here, then assign transactions to them from the transaction modal. Balances update automatically.",
-  "insights-monthly":"One card per category for the selected month: a breakdown donut, an optional monthly goal, and an expected-vs-paid table.",
-  "insights-yearly":"Planned vs. paid for the whole year, plus a monthly trend chart per category.",
-  paycheck:"The same transaction log, sliced by your actual pay cycle instead of the calendar month.",
-  budget5030:"Compares your spending against adjustable needs/wants/savings targets (50/30/20 by default).",
-  debt:"Plan your payoff order (snowball or avalanche), adjust the extra monthly payment, and see the live payoff timeline.",
-  sinkingFunds:"Track savings goals separate from your everyday Savings category — each with its own target and contribution history.",
-  netWorth:"Assets and liabilities pull automatically from your accounts and debts. Add manual entries for anything else, then take a snapshot to track it over time.",
-  noSpend:"Set a target number of no-spend days; Coffer works out the actual count from your transaction log automatically.",
-  settings:"Customize categories, currency, language, theme, and manage your backups from here."
+  dontShowAgain:"Don't show this again", gotIt:"Got it", reopenAria:"Show help for this screen",
+  dashboard:[
+    {title:"Step 1 — Scan the stat tiles", body:"Best saving month, biggest expense, and income vs. expenses for the year sit at the top for a quick health check."},
+    {title:"Step 2 — Dig into a chart", body:"Every chart below is paired with its exact numbers in a table, so you never have to guess a bar's height."},
+    {title:"Step 3 — Jump to detail", body:"Head to Monthly Insights or Yearly Overview from the sidebar for a category-by-category breakdown."}
+  ],
+  calendar:[
+    {title:"Step 1 — Add a transaction", body:"Double-click any empty day to open the add form pre-filled with that date."},
+    {title:"Step 2 — Act on a chip", body:"Click a colored chip to mark it paid, edit it, or delete it — one occurrence or the whole series."},
+    {title:"Step 3 — Reschedule by dragging", body:"Drag a chip to a different day to change its due date instantly."},
+    {title:"Step 4 — Filter what you see", body:"Toggle Recurring/Variable at the top right to declutter the view."}
+  ],
+  transactions:[
+    {title:"Step 1 — Filter the list", body:"Narrow by status, category, priority, account, month or year using the filter bar."},
+    {title:"Step 2 — Act inline", body:"Use the checkmark to mark paid, the pencil to edit, or the trash icon to delete, right from the row."},
+    {title:"Step 3 — Add a new one", body:"Use the + Add transaction button at the top right whenever you need to log something."}
+  ],
+  accounts:[
+    {title:"Step 1 — Add an account", body:"Click + Add account and choose checking, savings, cash, or credit card."},
+    {title:"Step 2 — Assign transactions", body:"Pick that account from the Account field whenever you add or edit a transaction."},
+    {title:"Step 3 — Watch balances update", body:"Each account's balance updates automatically as transactions are marked paid — no manual math."}
+  ],
+  "insights-monthly":[
+    {title:"Step 1 — Pick a month", body:"Use the arrows next to the month name to move between periods."},
+    {title:"Step 2 — Set a rollover", body:"Enter last month's leftover balance in the rollover field if you're carrying it forward."},
+    {title:"Step 3 — Read a category card", body:"Each card shows a donut of where the money went, an optional goal, and expected vs. paid."}
+  ],
+  "insights-yearly":[
+    {title:"Step 1 — Pick a year", body:"Use the arrows next to the year to move between years."},
+    {title:"Step 2 — Check the summary", body:"The top table totals planned vs. paid for every category across the whole year."},
+    {title:"Step 3 — Spot the trend", body:"Each category's bar chart below shows its monthly pattern at a glance."}
+  ],
+  paycheck:[
+    {title:"Step 1 — Set your pay cycle", body:"Choose weekly, biweekly, semi-monthly, monthly, or a custom cycle that matches your actual paydays."},
+    {title:"Step 2 — Browse a pay period", body:"Use the arrows to move to the period you want to look at."},
+    {title:"Step 3 — Read the totals", body:"Income, outflow, and net for that exact pay period are summarized above the table."}
+  ],
+  budget5030:[
+    {title:"Step 1 — Adjust the ratios", body:"Change the needs/wants/savings percentages if 50/30/20 isn't your target split."},
+    {title:"Step 2 — Pick a month", body:"Use the arrows next to the month to check a different period."},
+    {title:"Step 3 — See what's over", body:"Each bucket card flags whether you're over or under its target, and by how much."}
+  ],
+  debt:[
+    {title:"Step 1 — Log your debts", body:"Click + Add debt and enter the balance, APR, and minimum payment for each one."},
+    {title:"Step 2 — Choose a strategy", body:"Pick Snowball (smallest balance first), Avalanche (highest interest first), or set a custom order."},
+    {title:"Step 3 — Adjust the extra payment", body:"Use the +25/−25 buttons to see how extra monthly payments change your payoff date live."}
+  ],
+  sinkingFunds:[
+    {title:"Step 1 — Create a fund", body:"Click + Add fund and give it a name and a target amount."},
+    {title:"Step 2 — Log a contribution", body:"Use + Add contribution whenever you put money toward that goal."},
+    {title:"Step 3 — Watch the progress bar", body:"It fills in automatically as your contributions add up toward the target."}
+  ],
+  netWorth:[
+    {title:"Step 1 — Add anything missing", body:"Accounts and debts are pulled in automatically — add manual entries for anything else, like property or a car loan."},
+    {title:"Step 2 — Take a snapshot", body:"Click + Take snapshot to record today's net worth."},
+    {title:"Step 3 — Track it over time", body:"Take a new snapshot every so often to build the growth chart below."}
+  ],
+  noSpend:[
+    {title:"Step 1 — Set a target", body:"Enter how many no-spend days you're aiming for this month."},
+    {title:"Step 2 — Let it track itself", body:"Any day with no paid Expenses transaction counts automatically — nothing to log by hand."},
+    {title:"Step 3 — Check your record", body:"Your worst month so far is shown below for a bit of friendly perspective."}
+  ],
+  settings:[
+    {title:"Step 1 — Make it yours", body:"Set your language, theme, currency, and week start under General."},
+    {title:"Step 2 — Rename categories", body:"Under Categories & priorities, customize the names and priority levels to match how you think about money."},
+    {title:"Step 3 — Protect your data", body:"Under Backup & data, export a backup or connect an auto-save folder — see the guide there for multi-device setup."}
+  ]
 };
 I18N.fr.help = {
-  dontShowAgain:"Ne plus afficher", gotIt:"Compris",
-  dashboard:"Votre tableau de bord résume toute l'année en un coup d'œil : les indicateurs en haut, puis quatre graphiques accompagnés de leurs chiffres.",
-  calendar:"Chaque transaction prévue ou payée apparaît ici sous forme de puce colorée. Faites glisser une puce pour la reprogrammer, double-cliquez sur un jour vide pour en ajouter une, ou cliquez sur une puce pour des actions rapides.",
-  transactions:"La liste complète de chaque transaction, avec des filtres par statut, catégorie, priorité, compte, mois et année.",
-  accounts:"Ajoutez vos comptes bancaires et cartes ici, puis assignez-y des transactions depuis la fenêtre de transaction. Les soldes se mettent à jour automatiquement.",
-  "insights-monthly":"Une carte par catégorie pour le mois sélectionné : un donut de répartition, un objectif mensuel facultatif, et un tableau prévu vs payé.",
-  "insights-yearly":"Prévu vs payé pour toute l'année, plus une tendance mensuelle par catégorie.",
-  paycheck:"Le même journal de transactions, découpé selon votre cycle de paie réel plutôt que le mois calendaire.",
-  budget5030:"Compare vos dépenses à des objectifs ajustables besoins/envies/épargne (50/30/20 par défaut).",
-  debt:"Planifiez votre ordre de remboursement (boule de neige ou avalanche), ajustez le paiement supplémentaire mensuel, et suivez le calendrier en direct.",
-  sinkingFunds:"Suivez des objectifs d'épargne distincts de votre catégorie Épargne habituelle — chacun avec sa cible et son historique de contributions.",
-  netWorth:"Les actifs et passifs sont tirés automatiquement de vos comptes et dettes. Ajoutez des entrées manuelles pour le reste, puis créez un instantané pour suivre l'évolution.",
-  noSpend:"Définissez un nombre cible de jours sans dépense ; Coffer calcule automatiquement le nombre réel à partir de votre journal de transactions.",
-  settings:"Personnalisez les catégories, la devise, la langue, le thème, et gérez vos sauvegardes ici."
+  dontShowAgain:"Ne plus afficher", gotIt:"Compris", reopenAria:"Afficher l'aide de cet écran",
+  dashboard:[
+    {title:"Étape 1 — Parcourez les indicateurs", body:"Meilleur mois d'épargne, plus grosse dépense et revenus vs dépenses de l'année sont en haut pour un aperçu rapide."},
+    {title:"Étape 2 — Explorez un graphique", body:"Chaque graphique ci-dessous est accompagné de ses chiffres exacts dans un tableau, jamais besoin de deviner une hauteur de barre."},
+    {title:"Étape 3 — Allez au détail", body:"Rendez-vous sur Aperçu mensuel ou Bilan annuel dans le menu pour une répartition catégorie par catégorie."}
+  ],
+  calendar:[
+    {title:"Étape 1 — Ajoutez une transaction", body:"Double-cliquez sur un jour vide pour ouvrir le formulaire d'ajout pré-rempli avec cette date."},
+    {title:"Étape 2 — Agissez sur une puce", body:"Cliquez sur une puce colorée pour la marquer payée, la modifier ou la supprimer — cette occurrence ou toute la série."},
+    {title:"Étape 3 — Reprogrammez en glissant", body:"Faites glisser une puce vers un autre jour pour changer sa date d'échéance instantanément."},
+    {title:"Étape 4 — Filtrez l'affichage", body:"Basculez Récurrentes/Variables en haut à droite pour alléger la vue."}
+  ],
+  transactions:[
+    {title:"Étape 1 — Filtrez la liste", body:"Affinez par statut, catégorie, priorité, compte, mois ou année avec la barre de filtres."},
+    {title:"Étape 2 — Agissez en ligne", body:"Utilisez la coche pour marquer payé, le crayon pour modifier, ou la corbeille pour supprimer, directement depuis la ligne."},
+    {title:"Étape 3 — Ajoutez-en une nouvelle", body:"Utilisez le bouton + Ajouter une transaction en haut à droite dès que vous devez enregistrer quelque chose."}
+  ],
+  accounts:[
+    {title:"Étape 1 — Ajoutez un compte", body:"Cliquez sur + Ajouter un compte et choisissez courant, épargne, espèces ou carte de crédit."},
+    {title:"Étape 2 — Associez des transactions", body:"Choisissez ce compte dans le champ Compte à chaque ajout ou modification de transaction."},
+    {title:"Étape 3 — Regardez les soldes se mettre à jour", body:"Le solde de chaque compte se met à jour automatiquement dès qu'une transaction est marquée payée — aucun calcul à faire."}
+  ],
+  "insights-monthly":[
+    {title:"Étape 1 — Choisissez un mois", body:"Utilisez les flèches à côté du nom du mois pour naviguer entre les périodes."},
+    {title:"Étape 2 — Renseignez un report", body:"Indiquez le solde restant du mois précédent dans le champ de report si vous le reportez."},
+    {title:"Étape 3 — Lisez une carte de catégorie", body:"Chaque carte montre un donut de répartition des dépenses, un objectif facultatif, et le prévu vs payé."}
+  ],
+  "insights-yearly":[
+    {title:"Étape 1 — Choisissez une année", body:"Utilisez les flèches à côté de l'année pour naviguer entre les années."},
+    {title:"Étape 2 — Consultez le résumé", body:"Le tableau du haut totalise le prévu vs payé pour chaque catégorie sur toute l'année."},
+    {title:"Étape 3 — Repérez la tendance", body:"Le graphique en barres de chaque catégorie ci-dessous montre son évolution mensuelle en un coup d'œil."}
+  ],
+  paycheck:[
+    {title:"Étape 1 — Définissez votre cycle de paie", body:"Choisissez hebdomadaire, toutes les 2 semaines, deux fois par mois, mensuel, ou un cycle personnalisé correspondant à vos vraies dates de paie."},
+    {title:"Étape 2 — Parcourez une période de paie", body:"Utilisez les flèches pour vous déplacer vers la période que vous voulez consulter."},
+    {title:"Étape 3 — Lisez les totaux", body:"Revenus, sorties et net pour cette période exacte sont résumés au-dessus du tableau."}
+  ],
+  budget5030:[
+    {title:"Étape 1 — Ajustez les ratios", body:"Modifiez les pourcentages besoins/envies/épargne si 50/30/20 n'est pas votre répartition cible."},
+    {title:"Étape 2 — Choisissez un mois", body:"Utilisez les flèches à côté du mois pour consulter une autre période."},
+    {title:"Étape 3 — Voyez ce qui dépasse", body:"Chaque carte de catégorie indique si vous êtes au-dessus ou en dessous de sa cible, et de combien."}
+  ],
+  debt:[
+    {title:"Étape 1 — Enregistrez vos dettes", body:"Cliquez sur + Ajouter une dette et indiquez le solde, le TAEG et le paiement minimum pour chacune."},
+    {title:"Étape 2 — Choisissez une stratégie", body:"Optez pour Boule de neige (plus petit solde d'abord), Avalanche (taux le plus élevé d'abord), ou un ordre personnalisé."},
+    {title:"Étape 3 — Ajustez le paiement supplémentaire", body:"Utilisez les boutons +25/−25 pour voir en direct comment un paiement supplémentaire change votre date de fin de dette."}
+  ],
+  sinkingFunds:[
+    {title:"Étape 1 — Créez une cagnotte", body:"Cliquez sur + Ajouter une cagnotte et donnez-lui un nom et un montant cible."},
+    {title:"Étape 2 — Enregistrez une contribution", body:"Utilisez + Ajouter une contribution chaque fois que vous mettez de l'argent de côté pour cet objectif."},
+    {title:"Étape 3 — Regardez la barre de progression", body:"Elle se remplit automatiquement à mesure que vos contributions s'accumulent vers la cible."}
+  ],
+  netWorth:[
+    {title:"Étape 1 — Ajoutez ce qui manque", body:"Comptes et dettes sont importés automatiquement — ajoutez des entrées manuelles pour le reste, comme un bien immobilier ou un prêt auto."},
+    {title:"Étape 2 — Créez un instantané", body:"Cliquez sur + Créer un instantané pour enregistrer votre valeur nette actuelle."},
+    {title:"Étape 3 — Suivez son évolution", body:"Créez un nouvel instantané régulièrement pour construire le graphique de croissance ci-dessous."}
+  ],
+  noSpend:[
+    {title:"Étape 1 — Définissez un objectif", body:"Indiquez le nombre de jours sans dépense que vous visez ce mois-ci."},
+    {title:"Étape 2 — Laissez le suivi se faire seul", body:"Tout jour sans transaction payée de la catégorie Dépenses compte automatiquement — rien à noter à la main."},
+    {title:"Étape 3 — Consultez votre record", body:"Votre pire mois enregistré est affiché ci-dessous, histoire de relativiser un peu."}
+  ],
+  settings:[
+    {title:"Étape 1 — Personnalisez l'essentiel", body:"Réglez la langue, le thème, la devise et le début de semaine dans l'onglet Général."},
+    {title:"Étape 2 — Renommez les catégories", body:"Dans Catégories et priorités, personnalisez les noms et niveaux de priorité selon votre façon de penser l'argent."},
+    {title:"Étape 3 — Protégez vos données", body:"Dans Sauvegarde et données, exportez une sauvegarde ou connectez un dossier de sauvegarde automatique — voir le guide qui s'y trouve pour la configuration multi-appareils."}
+  ]
 };
 I18N.es.help = {
-  dontShowAgain:"No volver a mostrar", gotIt:"Entendido",
-  dashboard:"Tu panel resume todo el año de un vistazo: indicadores arriba, luego cuatro gráficos junto con sus cifras.",
-  calendar:"Cada transacción prevista o pagada aparece aquí como una etiqueta de color. Arrastra una etiqueta para reprogramarla, haz doble clic en un día vacío para añadir una, o haz clic en una etiqueta para acciones rápidas.",
-  transactions:"La lista completa de cada transacción, con filtros por estado, categoría, prioridad, cuenta, mes y año.",
-  accounts:"Añade tus cuentas bancarias y tarjetas aquí, luego asígnales transacciones desde el formulario de transacción. Los saldos se actualizan automáticamente.",
-  "insights-monthly":"Una tarjeta por categoría para el mes seleccionado: un donut de desglose, un objetivo mensual opcional y una tabla de previsto vs pagado.",
-  "insights-yearly":"Previsto vs pagado para todo el año, más una tendencia mensual por categoría.",
-  paycheck:"El mismo registro de transacciones, dividido según tu ciclo de pago real en lugar del mes natural.",
-  budget5030:"Compara tu gasto con objetivos ajustables de necesidades/deseos/ahorro (50/30/20 por defecto).",
-  debt:"Planifica tu orden de pago (bola de nieve o avalancha), ajusta el pago mensual extra y consulta el cronograma en vivo.",
-  sinkingFunds:"Sigue objetivos de ahorro distintos de tu categoría de Ahorros habitual, cada uno con su propio objetivo e historial de contribuciones.",
-  netWorth:"Los activos y pasivos se obtienen automáticamente de tus cuentas y deudas. Añade entradas manuales para lo demás y toma una instantánea para seguir la evolución.",
-  noSpend:"Establece un número objetivo de días sin gastar; Coffer calcula el número real automáticamente a partir de tu registro de transacciones.",
-  settings:"Personaliza categorías, moneda, idioma, tema y gestiona tus copias de seguridad aquí."
+  dontShowAgain:"No volver a mostrar", gotIt:"Entendido", reopenAria:"Mostrar ayuda de esta pantalla",
+  dashboard:[
+    {title:"Paso 1 — Revisa los indicadores", body:"El mejor mes de ahorro, el mayor gasto y los ingresos vs gastos del año están arriba para un vistazo rápido."},
+    {title:"Paso 2 — Explora un gráfico", body:"Cada gráfico de abajo va acompañado de sus cifras exactas en una tabla, nunca tendrás que adivinar la altura de una barra."},
+    {title:"Paso 3 — Ve al detalle", body:"Ve a Resumen mensual o Resumen anual en el menú para un desglose categoría por categoría."}
+  ],
+  calendar:[
+    {title:"Paso 1 — Añade una transacción", body:"Haz doble clic en un día vacío para abrir el formulario de añadir con esa fecha ya rellenada."},
+    {title:"Paso 2 — Actúa sobre una etiqueta", body:"Haz clic en una etiqueta de color para marcarla como pagada, editarla o eliminarla — esta ocurrencia o toda la serie."},
+    {title:"Paso 3 — Reprográmala arrastrando", body:"Arrastra una etiqueta a otro día para cambiar su fecha de vencimiento al instante."},
+    {title:"Paso 4 — Filtra lo que ves", body:"Activa o desactiva Recurrentes/Variables arriba a la derecha para simplificar la vista."}
+  ],
+  transactions:[
+    {title:"Paso 1 — Filtra la lista", body:"Acota por estado, categoría, prioridad, cuenta, mes o año con la barra de filtros."},
+    {title:"Paso 2 — Actúa en línea", body:"Usa la marca para pagar, el lápiz para editar o la papelera para eliminar, directamente desde la fila."},
+    {title:"Paso 3 — Añade una nueva", body:"Usa el botón + Añadir transacción arriba a la derecha cuando necesites registrar algo."}
+  ],
+  accounts:[
+    {title:"Paso 1 — Añade una cuenta", body:"Haz clic en + Añadir cuenta y elige corriente, ahorros, efectivo o tarjeta de crédito."},
+    {title:"Paso 2 — Asigna transacciones", body:"Elige esa cuenta en el campo Cuenta cada vez que añadas o edites una transacción."},
+    {title:"Paso 3 — Observa cómo se actualizan los saldos", body:"El saldo de cada cuenta se actualiza automáticamente al marcar una transacción como pagada — sin cálculos manuales."}
+  ],
+  "insights-monthly":[
+    {title:"Paso 1 — Elige un mes", body:"Usa las flechas junto al nombre del mes para moverte entre periodos."},
+    {title:"Paso 2 — Indica un remanente", body:"Introduce el saldo sobrante del mes anterior en el campo de remanente si lo estás arrastrando."},
+    {title:"Paso 3 — Lee una tarjeta de categoría", body:"Cada tarjeta muestra un donut de en qué se fue el dinero, un objetivo opcional, y lo previsto vs pagado."}
+  ],
+  "insights-yearly":[
+    {title:"Paso 1 — Elige un año", body:"Usa las flechas junto al año para moverte entre años."},
+    {title:"Paso 2 — Revisa el resumen", body:"La tabla superior totaliza lo previsto vs pagado de cada categoría durante todo el año."},
+    {title:"Paso 3 — Detecta la tendencia", body:"El gráfico de barras de cada categoría abajo muestra su patrón mensual de un vistazo."}
+  ],
+  paycheck:[
+    {title:"Paso 1 — Configura tu ciclo de pago", body:"Elige semanal, cada 2 semanas, dos veces al mes, mensual, o un ciclo personalizado que coincida con tus fechas de pago reales."},
+    {title:"Paso 2 — Explora un periodo de pago", body:"Usa las flechas para moverte al periodo que quieras consultar."},
+    {title:"Paso 3 — Lee los totales", body:"Ingresos, salidas y neto de ese periodo exacto se resumen encima de la tabla."}
+  ],
+  budget5030:[
+    {title:"Paso 1 — Ajusta los ratios", body:"Cambia los porcentajes de necesidades/deseos/ahorro si 50/30/20 no es tu reparto objetivo."},
+    {title:"Paso 2 — Elige un mes", body:"Usa las flechas junto al mes para consultar otro periodo."},
+    {title:"Paso 3 — Mira qué se pasa del límite", body:"Cada tarjeta de bucket indica si estás por encima o por debajo de su objetivo, y por cuánto."}
+  ],
+  debt:[
+    {title:"Paso 1 — Registra tus deudas", body:"Haz clic en + Añadir deuda e indica el saldo, la TAE y el pago mínimo de cada una."},
+    {title:"Paso 2 — Elige una estrategia", body:"Opta por Bola de nieve (saldo más pequeño primero), Avalancha (interés más alto primero), o un orden personalizado."},
+    {title:"Paso 3 — Ajusta el pago extra", body:"Usa los botones +25/−25 para ver en vivo cómo un pago mensual extra cambia tu fecha de liquidación."}
+  ],
+  sinkingFunds:[
+    {title:"Paso 1 — Crea un fondo", body:"Haz clic en + Añadir fondo y dale un nombre y un importe objetivo."},
+    {title:"Paso 2 — Registra una contribución", body:"Usa + Añadir contribución cada vez que pongas dinero hacia ese objetivo."},
+    {title:"Paso 3 — Observa la barra de progreso", body:"Se rellena automáticamente a medida que tus contribuciones se acumulan hacia el objetivo."}
+  ],
+  netWorth:[
+    {title:"Paso 1 — Añade lo que falte", body:"Cuentas y deudas se importan automáticamente — añade entradas manuales para lo demás, como una propiedad o un préstamo de coche."},
+    {title:"Paso 2 — Toma una instantánea", body:"Haz clic en + Tomar instantánea para registrar tu patrimonio neto de hoy."},
+    {title:"Paso 3 — Sigue su evolución", body:"Toma una nueva instantánea de vez en cuando para construir el gráfico de crecimiento de abajo."}
+  ],
+  noSpend:[
+    {title:"Paso 1 — Fija un objetivo", body:"Indica cuántos días sin gastar te propones este mes."},
+    {title:"Paso 2 — Deja que se calcule solo", body:"Cualquier día sin una transacción pagada de Gastos cuenta automáticamente — nada que anotar a mano."},
+    {title:"Paso 3 — Consulta tu récord", body:"Tu peor mes registrado se muestra abajo, para poner las cosas en perspectiva."}
+  ],
+  settings:[
+    {title:"Paso 1 — Hazla tuya", body:"Configura idioma, tema, moneda e inicio de semana en General."},
+    {title:"Paso 2 — Renombra las categorías", body:"En Categorías y prioridades, personaliza los nombres y niveles de prioridad según cómo piensas el dinero."},
+    {title:"Paso 3 — Protege tus datos", body:"En Copia de seguridad y datos, exporta una copia o conecta una carpeta de guardado automático — consulta la guía de ahí para la configuración multidispositivo."}
+  ]
 };
 I18N.de.help = {
-  dontShowAgain:"Nicht mehr anzeigen", gotIt:"Verstanden",
-  dashboard:"Deine Übersicht fasst das ganze Jahr auf einen Blick zusammen: oben die Kennzahlen, darunter vier Diagramme jeweils mit ihren Zahlen.",
-  calendar:"Jede geplante oder bezahlte Transaktion erscheint hier als farbiges Etikett. Ziehe ein Etikett, um es zu verschieben, doppelklicke auf einen leeren Tag, um eine hinzuzufügen, oder klicke auf ein Etikett für Schnellaktionen.",
-  transactions:"Die vollständige Liste aller Transaktionen mit Filtern nach Status, Kategorie, Priorität, Konto, Monat und Jahr.",
-  accounts:"Füge hier deine Bankkonten und Karten hinzu und weise ihnen dann Transaktionen im Transaktionsformular zu. Salden aktualisieren sich automatisch.",
-  "insights-monthly":"Eine Karte pro Kategorie für den gewählten Monat: ein Aufschlüsselungs-Donut, ein optionales Monatsziel und eine Geplant-vs-bezahlt-Tabelle.",
-  "insights-yearly":"Geplant vs. bezahlt für das ganze Jahr, plus ein monatlicher Trend pro Kategorie.",
-  paycheck:"Dasselbe Transaktionsprotokoll, aufgeteilt nach deinem tatsächlichen Gehaltszyklus statt nach Kalendermonat.",
-  budget5030:"Vergleicht deine Ausgaben mit anpassbaren Bedürfnisse/Wünsche/Ersparnisse-Zielen (standardmäßig 50/30/20).",
-  debt:"Plane deine Tilgungsreihenfolge (Schneeball oder Lawine), passe die zusätzliche monatliche Zahlung an und sieh den Tilgungsplan live.",
-  sinkingFunds:"Verfolge Sparziele getrennt von deiner normalen Ersparnisse-Kategorie — jedes mit eigenem Ziel und Beitragsverlauf.",
-  netWorth:"Vermögenswerte und Verbindlichkeiten werden automatisch aus deinen Konten und Schulden übernommen. Füge manuelle Einträge für alles andere hinzu und erstelle dann eine Momentaufnahme, um den Verlauf zu verfolgen.",
-  noSpend:"Lege eine Zielzahl ausgabenfreier Tage fest; Coffer ermittelt die tatsächliche Anzahl automatisch aus deinem Transaktionsprotokoll.",
-  settings:"Passe Kategorien, Währung, Sprache und Design an und verwalte hier deine Sicherungen."
+  dontShowAgain:"Nicht mehr anzeigen", gotIt:"Verstanden", reopenAria:"Hilfe für diesen Bildschirm anzeigen",
+  dashboard:[
+    {title:"Schritt 1 — Kennzahlen überfliegen", body:"Bester Sparmonat, größte Ausgabe und Einkommen vs. Ausgaben des Jahres stehen oben für einen schnellen Überblick."},
+    {title:"Schritt 2 — Ein Diagramm erkunden", body:"Jedes Diagramm unten ist mit seinen genauen Zahlen in einer Tabelle versehen — nie die Höhe eines Balkens erraten müssen."},
+    {title:"Schritt 3 — Ins Detail gehen", body:"Gehe über die Seitenleiste zu Monatsübersicht oder Jahresübersicht für eine Aufschlüsselung nach Kategorie."}
+  ],
+  calendar:[
+    {title:"Schritt 1 — Transaktion hinzufügen", body:"Doppelklicke auf einen leeren Tag, um das Hinzufügen-Formular mit diesem Datum vorausgefüllt zu öffnen."},
+    {title:"Schritt 2 — Auf ein Etikett reagieren", body:"Klicke auf ein farbiges Etikett, um es als bezahlt zu markieren, zu bearbeiten oder zu löschen — nur dieses Vorkommen oder die gesamte Serie."},
+    {title:"Schritt 3 — Per Ziehen verschieben", body:"Ziehe ein Etikett auf einen anderen Tag, um sein Fälligkeitsdatum sofort zu ändern."},
+    {title:"Schritt 4 — Ansicht filtern", body:"Schalte Wiederkehrend/Variabel oben rechts um, um die Ansicht zu vereinfachen."}
+  ],
+  transactions:[
+    {title:"Schritt 1 — Liste filtern", body:"Grenze nach Status, Kategorie, Priorität, Konto, Monat oder Jahr über die Filterleiste ein."},
+    {title:"Schritt 2 — Direkt in der Zeile handeln", body:"Nutze das Häkchen zum Bezahlt-Markieren, den Stift zum Bearbeiten oder den Papierkorb zum Löschen, direkt in der Zeile."},
+    {title:"Schritt 3 — Eine neue hinzufügen", body:"Nutze den Button + Transaktion hinzufügen oben rechts, wann immer du etwas erfassen musst."}
+  ],
+  accounts:[
+    {title:"Schritt 1 — Konto hinzufügen", body:"Klicke auf + Konto hinzufügen und wähle Girokonto, Sparkonto, Bargeld oder Kreditkarte."},
+    {title:"Schritt 2 — Transaktionen zuweisen", body:"Wähle dieses Konto im Feld Konto, wann immer du eine Transaktion hinzufügst oder bearbeitest."},
+    {title:"Schritt 3 — Salden automatisch aktualisieren lassen", body:"Der Saldo jedes Kontos aktualisiert sich automatisch, sobald eine Transaktion als bezahlt markiert wird — keine manuelle Rechnerei."}
+  ],
+  "insights-monthly":[
+    {title:"Schritt 1 — Monat wählen", body:"Nutze die Pfeile neben dem Monatsnamen, um zwischen Zeiträumen zu wechseln."},
+    {title:"Schritt 2 — Übertrag eintragen", body:"Trage den Restbetrag des Vormonats im Übertrag-Feld ein, falls du ihn überträgst."},
+    {title:"Schritt 3 — Eine Kategoriekarte lesen", body:"Jede Karte zeigt einen Donut der Ausgabenverteilung, ein optionales Ziel und Geplant vs. bezahlt."}
+  ],
+  "insights-yearly":[
+    {title:"Schritt 1 — Jahr wählen", body:"Nutze die Pfeile neben dem Jahr, um zwischen Jahren zu wechseln."},
+    {title:"Schritt 2 — Übersicht prüfen", body:"Die obere Tabelle summiert Geplant vs. bezahlt für jede Kategorie über das ganze Jahr."},
+    {title:"Schritt 3 — Trend erkennen", body:"Das Balkendiagramm jeder Kategorie unten zeigt ihr monatliches Muster auf einen Blick."}
+  ],
+  paycheck:[
+    {title:"Schritt 1 — Gehaltszyklus einstellen", body:"Wähle wöchentlich, alle 2 Wochen, zweimal im Monat, monatlich oder einen benutzerdefinierten Zyklus passend zu deinen tatsächlichen Zahltagen."},
+    {title:"Schritt 2 — Einen Gehaltszeitraum durchsuchen", body:"Nutze die Pfeile, um zu dem Zeitraum zu wechseln, den du dir ansehen möchtest."},
+    {title:"Schritt 3 — Summen lesen", body:"Einkommen, Ausgaben und Netto für genau diesen Zeitraum stehen über der Tabelle."}
+  ],
+  budget5030:[
+    {title:"Schritt 1 — Verhältnisse anpassen", body:"Ändere die Bedürfnisse/Wünsche/Ersparnisse-Prozentsätze, falls 50/30/20 nicht deine Zielverteilung ist."},
+    {title:"Schritt 2 — Monat wählen", body:"Nutze die Pfeile neben dem Monat, um einen anderen Zeitraum zu prüfen."},
+    {title:"Schritt 3 — Sehen, was drüber liegt", body:"Jede Bucket-Karte zeigt an, ob du über oder unter dem Ziel liegst — und um wie viel."}
+  ],
+  debt:[
+    {title:"Schritt 1 — Schulden erfassen", body:"Klicke auf + Schuld hinzufügen und gib Saldo, Effektivzins und Mindestzahlung für jede ein."},
+    {title:"Schritt 2 — Strategie wählen", body:"Wähle Schneeball (kleinster Saldo zuerst), Lawine (höchster Zinssatz zuerst) oder eine eigene Reihenfolge."},
+    {title:"Schritt 3 — Zusatzzahlung anpassen", body:"Nutze die Buttons +25/−25, um live zu sehen, wie eine zusätzliche monatliche Zahlung dein Tilgungsdatum verändert."}
+  ],
+  sinkingFunds:[
+    {title:"Schritt 1 — Sparziel erstellen", body:"Klicke auf + Sparziel hinzufügen und gib ihm einen Namen und einen Zielbetrag."},
+    {title:"Schritt 2 — Beitrag erfassen", body:"Nutze + Beitrag hinzufügen, wann immer du Geld für dieses Ziel zurücklegst."},
+    {title:"Schritt 3 — Fortschrittsbalken beobachten", body:"Er füllt sich automatisch, während sich deine Beiträge dem Ziel nähern."}
+  ],
+  netWorth:[
+    {title:"Schritt 1 — Fehlendes hinzufügen", body:"Konten und Schulden werden automatisch übernommen — füge manuelle Einträge für alles andere hinzu, etwa eine Immobilie oder einen Autokredit."},
+    {title:"Schritt 2 — Momentaufnahme erstellen", body:"Klicke auf + Momentaufnahme erstellen, um dein heutiges Nettovermögen festzuhalten."},
+    {title:"Schritt 3 — Verlauf verfolgen", body:"Erstelle von Zeit zu Zeit eine neue Momentaufnahme, um das Wachstumsdiagramm unten aufzubauen."}
+  ],
+  noSpend:[
+    {title:"Schritt 1 — Ziel festlegen", body:"Gib an, wie viele ausgabenfreie Tage du diesen Monat anstrebst."},
+    {title:"Schritt 2 — Automatisch mitzählen lassen", body:"Jeder Tag ohne bezahlte Ausgaben-Transaktion zählt automatisch — nichts manuell zu erfassen."},
+    {title:"Schritt 3 — Rekord ansehen", body:"Dein bisher schlechtester Monat wird unten angezeigt, für etwas Perspektive."}
+  ],
+  settings:[
+    {title:"Schritt 1 — Grundlegendes anpassen", body:"Stelle Sprache, Design, Währung und Wochenstart unter Allgemein ein."},
+    {title:"Schritt 2 — Kategorien umbenennen", body:"Passe unter Kategorien & Prioritäten die Namen und Prioritätsstufen an deine Denkweise über Geld an."},
+    {title:"Schritt 3 — Daten schützen", body:"Exportiere unter Sicherung & Daten eine Sicherung oder verbinde einen automatischen Speicherordner — die dortige Anleitung erklärt die Einrichtung auf mehreren Geräten."}
+  ]
 };
 
 I18N.en.guide = {
@@ -936,28 +1172,32 @@ I18N.en.guide = {
   step1Title:"1. Log your money", step1Body:"Add income, bills, and expenses from Calendar, Transactions, or the + button in the header. Recurring items generate their own future occurrences automatically.",
   step2Title:"2. Watch it add up", step2Body:"Dashboard, Monthly Insights and Yearly Overview turn your log into charts, always shown next to their numbers.",
   step3Title:"3. Plan ahead", step3Body:"Use the Debt Payoff planner, Sinking Funds, 50/30/20, and Paycheck view to plan beyond just tracking.",
-  step4Title:"4. Back it up", step4Body:"Your data lives in this browser only. Export a backup regularly from Settings, or point Coffer at a synced folder on Chromium browsers."
+  step4Title:"4. Back it up", step4Body:"Your data lives in this browser only. Export a backup regularly from Settings, or point Coffer at a synced folder on Chromium browsers.",
+  whereToStartTitle:"Where to start", supportTitle:"Need help?", supportBody:"Questions, a bug, or feedback — reach out any time:"
 };
 I18N.fr.guide = {
   intro:"Coffer garde tous vos chiffres sur votre appareil — rien n'est jamais envoyé en ligne. Voici un tour rapide.",
   step1Title:"1. Enregistrez votre argent", step1Body:"Ajoutez revenus, factures et dépenses depuis le Calendrier, les Transactions, ou le bouton + dans l'en-tête. Les éléments récurrents génèrent leurs occurrences futures automatiquement.",
   step2Title:"2. Suivez l'évolution", step2Body:"Le tableau de bord, l'aperçu mensuel et le bilan annuel transforment votre journal en graphiques, toujours à côté de leurs chiffres.",
   step3Title:"3. Planifiez", step3Body:"Utilisez le plan de remboursement, les cagnottes, le 50/30/20 et la vue par paie pour planifier au-delà du simple suivi.",
-  step4Title:"4. Sauvegardez", step4Body:"Vos données ne vivent que dans ce navigateur. Exportez une sauvegarde régulièrement depuis Paramètres, ou pointez Coffer vers un dossier synchronisé sur les navigateurs Chromium."
+  step4Title:"4. Sauvegardez", step4Body:"Vos données ne vivent que dans ce navigateur. Exportez une sauvegarde régulièrement depuis Paramètres, ou pointez Coffer vers un dossier synchronisé sur les navigateurs Chromium.",
+  whereToStartTitle:"Où commencer", supportTitle:"Besoin d'aide ?", supportBody:"Des questions, un bug, un retour — écrivez-nous quand vous voulez :"
 };
 I18N.es.guide = {
   intro:"Coffer guarda todos tus datos solo en tu dispositivo — nunca se suben a ningún sitio. Aquí tienes un recorrido rápido.",
   step1Title:"1. Registra tu dinero", step1Body:"Añade ingresos, facturas y gastos desde Calendario, Transacciones, o el botón + del encabezado. Los elementos recurrentes generan sus futuras ocurrencias automáticamente.",
   step2Title:"2. Observa cómo se suma", step2Body:"El panel, el resumen mensual y el resumen anual convierten tu registro en gráficos, siempre junto a sus cifras.",
   step3Title:"3. Planifica", step3Body:"Usa el planificador de pago de deudas, los fondos de ahorro, el 50/30/20 y la vista por nómina para planificar más allá del simple seguimiento.",
-  step4Title:"4. Haz copias de seguridad", step4Body:"Tus datos viven solo en este navegador. Exporta una copia de seguridad regularmente desde Ajustes, o apunta Coffer a una carpeta sincronizada en navegadores Chromium."
+  step4Title:"4. Haz copias de seguridad", step4Body:"Tus datos viven solo en este navegador. Exporta una copia de seguridad regularmente desde Ajustes, o apunta Coffer a una carpeta sincronizada en navegadores Chromium.",
+  whereToStartTitle:"Por dónde empezar", supportTitle:"¿Necesitas ayuda?", supportBody:"¿Preguntas, un error o comentarios? Escríbenos cuando quieras:"
 };
 I18N.de.guide = {
   intro:"Coffer behält alle Zahlen nur auf deinem Gerät — nichts wird jemals hochgeladen. Hier eine kurze Tour.",
   step1Title:"1. Erfasse dein Geld", step1Body:"Füge Einkommen, Rechnungen und Ausgaben über Kalender, Transaktionen oder den +-Button in der Kopfzeile hinzu. Wiederkehrende Posten erzeugen ihre zukünftigen Vorkommen automatisch.",
   step2Title:"2. Verfolge die Summe", step2Body:"Übersicht, Monatsübersicht und Jahresübersicht verwandeln dein Protokoll in Diagramme, immer neben ihren Zahlen.",
   step3Title:"3. Plane voraus", step3Body:"Nutze den Schuldenabbau-Planer, Sparziele, 50/30/20 und die Gehaltsansicht, um mehr als nur zu verfolgen.",
-  step4Title:"4. Sichere deine Daten", step4Body:"Deine Daten leben nur in diesem Browser. Exportiere regelmäßig eine Sicherung über Einstellungen oder verweise Coffer bei Chromium-Browsern auf einen synchronisierten Ordner."
+  step4Title:"4. Sichere deine Daten", step4Body:"Deine Daten leben nur in diesem Browser. Exportiere regelmäßig eine Sicherung über Einstellungen oder verweise Coffer bei Chromium-Browsern auf einen synchronisierten Ordner.",
+  whereToStartTitle:"Wo du anfängst", supportTitle:"Brauchst du Hilfe?", supportBody:"Fragen, ein Fehler oder Feedback — melde dich jederzeit:"
 };
 
 I18N.en.backup = {
@@ -965,53 +1205,113 @@ I18N.en.backup = {
   clearAllConfirm:"Type DELETE to permanently erase all data on this device.", typeToConfirm:"Type DELETE to confirm", confirmWord:"DELETE",
   importSuccess:"Backup restored.", importError:"That file doesn't look like a Coffer backup.", cleared:"All data cleared.",
   autoFolderTitle:"Auto-save to a folder", autoFolderBody:"On Chromium browsers you can pick a local folder (ideally one your cloud sync app already watches) and Coffer will keep a backup file there automatically.",
-  chooseFolder:"Choose folder", folderNotSupported:"Not supported in this browser — use export/import instead.", folderActive:"Auto-saving to: {name}", stopFolder:"Stop auto-save"
+  chooseFolder:"Choose folder", folderNotSupported:"Not supported in this browser — use export/import instead.", folderActive:"Auto-saving to: {name}", stopFolder:"Stop auto-save",
+  multiDeviceTitle:"Use the app on multiple devices", onComputer:"On desktop", onPhone:"On phone/tablet",
+  computerSteps:[
+    "Install Google Drive, OneDrive, or Dropbox and let it finish syncing its folder.",
+    "In Settings > Backup & data, click “Choose folder” and pick that synced folder (Chromium browsers only).",
+    "Coffer will now auto-save a backup file into it every time you make a change.",
+    "Before switching devices, check the synced folder shows the latest backup file, not an older one."
+  ],
+  phoneSteps:[
+    "Install the Google Drive, OneDrive, or Dropbox app and make sure it's signed in and synced.",
+    "Phone browsers don't support auto-save-to-folder, so open Settings > Backup & data and tap “Download full backup” instead.",
+    "Save that download into your synced cloud folder from your phone's files/downloads app.",
+    "On your other device, use “Restore from backup” and pick that same file to bring your data over."
+  ]
 };
 I18N.fr.backup = {
   exportJson:"Télécharger la sauvegarde complète (JSON)", importJson:"Restaurer depuis une sauvegarde", exportCsv:"Exporter les transactions (CSV)",
   clearAllConfirm:"Tapez SUPPRIMER pour effacer définitivement toutes les données de cet appareil.", typeToConfirm:"Tapez SUPPRIMER pour confirmer", confirmWord:"SUPPRIMER",
   importSuccess:"Sauvegarde restaurée.", importError:"Ce fichier ne ressemble pas à une sauvegarde Coffer.", cleared:"Toutes les données ont été effacées.",
   autoFolderTitle:"Sauvegarde automatique dans un dossier", autoFolderBody:"Sur les navigateurs Chromium, vous pouvez choisir un dossier local (idéalement déjà synchronisé) et Coffer y conservera une sauvegarde automatiquement.",
-  chooseFolder:"Choisir un dossier", folderNotSupported:"Non pris en charge par ce navigateur — utilisez export/import à la place.", folderActive:"Sauvegarde automatique vers : {name}", stopFolder:"Arrêter la sauvegarde auto"
+  chooseFolder:"Choisir un dossier", folderNotSupported:"Non pris en charge par ce navigateur — utilisez export/import à la place.", folderActive:"Sauvegarde automatique vers : {name}", stopFolder:"Arrêter la sauvegarde auto",
+  multiDeviceTitle:"Utiliser l'app sur plusieurs appareils", onComputer:"Sur ordinateur", onPhone:"Sur téléphone/tablette",
+  computerSteps:[
+    "Installez Google Drive, OneDrive ou Dropbox et laissez la synchronisation du dossier se terminer.",
+    "Dans Paramètres > Sauvegarde et données, cliquez sur « Choisir un dossier » et sélectionnez ce dossier synchronisé (navigateurs Chromium uniquement).",
+    "Coffer enregistrera désormais automatiquement un fichier de sauvegarde dedans à chaque modification.",
+    "Avant de changer d'appareil, vérifiez que le dossier synchronisé affiche bien la dernière sauvegarde, pas une ancienne."
+  ],
+  phoneSteps:[
+    "Installez l'application Google Drive, OneDrive ou Dropbox et assurez-vous qu'elle est connectée et synchronisée.",
+    "Les navigateurs mobiles ne prenant pas en charge la sauvegarde automatique dans un dossier, ouvrez Paramètres > Sauvegarde et données et touchez « Télécharger la sauvegarde complète » à la place.",
+    "Enregistrez ce téléchargement dans votre dossier cloud synchronisé depuis l'appli fichiers/téléchargements de votre téléphone.",
+    "Sur votre autre appareil, utilisez « Restaurer depuis une sauvegarde » et choisissez ce même fichier pour récupérer vos données."
+  ]
 };
 I18N.es.backup = {
   exportJson:"Descargar copia de seguridad completa (JSON)", importJson:"Restaurar desde copia de seguridad", exportCsv:"Exportar transacciones (CSV)",
   clearAllConfirm:"Escribe DELETE para borrar permanentemente todos los datos de este dispositivo.", typeToConfirm:"Escribe DELETE para confirmar", confirmWord:"DELETE",
   importSuccess:"Copia de seguridad restaurada.", importError:"Ese archivo no parece una copia de seguridad de Coffer.", cleared:"Todos los datos han sido borrados.",
   autoFolderTitle:"Guardado automático en una carpeta", autoFolderBody:"En navegadores Chromium puedes elegir una carpeta local (idealmente una que tu app de sincronización ya vigile) y Coffer guardará allí una copia de seguridad automáticamente.",
-  chooseFolder:"Elegir carpeta", folderNotSupported:"No compatible con este navegador — usa exportar/importar en su lugar.", folderActive:"Guardado automático en: {name}", stopFolder:"Detener guardado automático"
+  chooseFolder:"Elegir carpeta", folderNotSupported:"No compatible con este navegador — usa exportar/importar en su lugar.", folderActive:"Guardado automático en: {name}", stopFolder:"Detener guardado automático",
+  multiDeviceTitle:"Usar la app en varios dispositivos", onComputer:"En ordenador", onPhone:"En teléfono/tableta",
+  computerSteps:[
+    "Instala Google Drive, OneDrive o Dropbox y deja que termine de sincronizar su carpeta.",
+    "En Ajustes > Copia de seguridad y datos, haz clic en «Elegir carpeta» y selecciona esa carpeta sincronizada (solo navegadores Chromium).",
+    "Coffer guardará automáticamente un archivo de copia de seguridad ahí cada vez que hagas un cambio.",
+    "Antes de cambiar de dispositivo, comprueba que la carpeta sincronizada muestra la última copia de seguridad, no una antigua."
+  ],
+  phoneSteps:[
+    "Instala la app de Google Drive, OneDrive o Dropbox y asegúrate de que está conectada y sincronizada.",
+    "Como los navegadores móviles no admiten el guardado automático en carpeta, abre Ajustes > Copia de seguridad y datos y toca «Descargar copia de seguridad completa» en su lugar.",
+    "Guarda esa descarga en tu carpeta de nube sincronizada desde la app de archivos/descargas de tu teléfono.",
+    "En tu otro dispositivo, usa «Restaurar desde copia de seguridad» y elige ese mismo archivo para traer tus datos."
+  ]
 };
 I18N.de.backup = {
   exportJson:"Vollständige Sicherung herunterladen (JSON)", importJson:"Aus Sicherung wiederherstellen", exportCsv:"Transaktionen exportieren (CSV)",
   clearAllConfirm:"Gib LÖSCHEN ein, um alle Daten auf diesem Gerät dauerhaft zu löschen.", typeToConfirm:"Gib LÖSCHEN ein, um zu bestätigen", confirmWord:"LÖSCHEN",
   importSuccess:"Sicherung wiederhergestellt.", importError:"Diese Datei sieht nicht wie eine Coffer-Sicherung aus.", cleared:"Alle Daten wurden gelöscht.",
   autoFolderTitle:"Automatisches Speichern in einem Ordner", autoFolderBody:"In Chromium-Browsern kannst du einen lokalen Ordner wählen (idealerweise einen, den deine Cloud-Sync-App bereits überwacht), und Coffer speichert dort automatisch eine Sicherung.",
-  chooseFolder:"Ordner wählen", folderNotSupported:"In diesem Browser nicht unterstützt — nutze stattdessen Export/Import.", folderActive:"Automatische Speicherung nach: {name}", stopFolder:"Automatisches Speichern stoppen"
+  chooseFolder:"Ordner wählen", folderNotSupported:"In diesem Browser nicht unterstützt — nutze stattdessen Export/Import.", folderActive:"Automatische Speicherung nach: {name}", stopFolder:"Automatisches Speichern stoppen",
+  multiDeviceTitle:"Die App auf mehreren Geräten nutzen", onComputer:"Am Computer", onPhone:"Am Smartphone/Tablet",
+  computerSteps:[
+    "Installiere Google Drive, OneDrive oder Dropbox und lass die Synchronisierung des Ordners abschließen.",
+    "Klicke unter Einstellungen > Sicherung & Daten auf „Ordner wählen“ und wähle diesen synchronisierten Ordner (nur Chromium-Browser).",
+    "Coffer speichert nun bei jeder Änderung automatisch eine Sicherungsdatei darin.",
+    "Prüfe vor dem Gerätewechsel, ob der synchronisierte Ordner die neueste Sicherung zeigt und nicht eine ältere."
+  ],
+  phoneSteps:[
+    "Installiere die Google-Drive-, OneDrive- oder Dropbox-App und stelle sicher, dass sie angemeldet und synchronisiert ist.",
+    "Da mobile Browser kein automatisches Speichern in einen Ordner unterstützen, öffne stattdessen Einstellungen > Sicherung & Daten und tippe auf „Vollständige Sicherung herunterladen“.",
+    "Speichere diesen Download über die Dateien-/Downloads-App deines Telefons in deinem synchronisierten Cloud-Ordner.",
+    "Nutze auf deinem anderen Gerät „Aus Sicherung wiederherstellen“ und wähle dieselbe Datei, um deine Daten zu übertragen."
+  ]
 };
 
 I18N.en.license = {
   title:"License", statusUnlocked:"Full version unlocked", statusDemo:"Demo — sample data",
   enterCode:"Enter your activation code", codePlaceholder:"COFA-B2C3-D4E5-F607", unlock:"Unlock",
   invalidCode:"That code isn't valid. Double-check for typos.", unlockedMessage:"Unlocked! Thanks for supporting Coffer.",
-  whereToBuy:"Purchased on Etsy? Your activation code is included with your order.", demoNote:"Coffer is fully usable right now — an activation code just removes the demo label and sample data marking, permanently, on this device."
+  whereToBuy:"Purchased on Etsy? Your activation code is included with your order.", demoNote:"Coffer is fully usable right now — an activation code just removes the demo label and sample data marking, permanently, on this device.",
+  previewDayOne:"Preview day 1", previewDayOneConfirm:"This clears the sample transactions, accounts, debts and funds so you can see Coffer completely empty — like a brand new install. Your language, theme and other settings stay as they are. You can bring the sample data back any time from here.", previewDayOneDone:"Sample data cleared.",
+  restoreDemo:"Restore sample data", restoreDemoConfirm:"This replaces your current empty state with a full year of sample data again, so you can preview Coffer pre-filled.", restoreDemoDone:"Sample data restored."
 };
 I18N.fr.license = {
   title:"Licence", statusUnlocked:"Version complète débloquée", statusDemo:"Démo — données d'exemple",
   enterCode:"Entrez votre code d'activation", codePlaceholder:"COFA-B2C3-D4E5-F607", unlock:"Débloquer",
   invalidCode:"Ce code n'est pas valide. Vérifiez les fautes de frappe.", unlockedMessage:"Débloqué ! Merci de soutenir Coffer.",
-  whereToBuy:"Acheté sur Etsy ? Votre code d'activation est inclus avec votre commande.", demoNote:"Coffer est pleinement utilisable dès maintenant — un code d'activation retire simplement, de façon permanente sur cet appareil, la mention démo et les données d'exemple."
+  whereToBuy:"Acheté sur Etsy ? Votre code d'activation est inclus avec votre commande.", demoNote:"Coffer est pleinement utilisable dès maintenant — un code d'activation retire simplement, de façon permanente sur cet appareil, la mention démo et les données d'exemple.",
+  previewDayOne:"Prévisualiser le jour 1", previewDayOneConfirm:"Cela efface les transactions, comptes, dettes et cagnottes d'exemple pour voir Coffer complètement vide — comme une toute nouvelle installation. Votre langue, votre thème et vos autres réglages restent inchangés. Vous pourrez retrouver les données d'exemple à tout moment depuis ici.", previewDayOneDone:"Données d'exemple effacées.",
+  restoreDemo:"Restaurer les données d'exemple", restoreDemoConfirm:"Cela remplace l'état vide actuel par une année complète de données d'exemple, pour prévisualiser Coffer préremplie.", restoreDemoDone:"Données d'exemple restaurées."
 };
 I18N.es.license = {
   title:"Licencia", statusUnlocked:"Versión completa desbloqueada", statusDemo:"Demo — datos de ejemplo",
   enterCode:"Introduce tu código de activación", codePlaceholder:"COFA-B2C3-D4E5-F607", unlock:"Desbloquear",
   invalidCode:"Ese código no es válido. Revisa si hay errores.", unlockedMessage:"¡Desbloqueado! Gracias por apoyar a Coffer.",
-  whereToBuy:"¿Comprado en Etsy? Tu código de activación viene incluido con tu pedido.", demoNote:"Coffer ya es totalmente utilizable — un código de activación solo retira, de forma permanente en este dispositivo, la etiqueta de demo y el marcado de datos de ejemplo."
+  whereToBuy:"¿Comprado en Etsy? Tu código de activación viene incluido con tu pedido.", demoNote:"Coffer ya es totalmente utilizable — un código de activación solo retira, de forma permanente en este dispositivo, la etiqueta de demo y el marcado de datos de ejemplo.",
+  previewDayOne:"Vista previa del día 1", previewDayOneConfirm:"Esto borra las transacciones, cuentas, deudas y fondos de ejemplo para que veas Coffer completamente vacío, como una instalación nueva. Tu idioma, tema y demás ajustes se mantienen. Podrás recuperar los datos de ejemplo en cualquier momento desde aquí.", previewDayOneDone:"Datos de ejemplo borrados.",
+  restoreDemo:"Restaurar datos de ejemplo", restoreDemoConfirm:"Esto reemplaza el estado vacío actual por un año completo de datos de ejemplo de nuevo, para previsualizar Coffer con contenido.", restoreDemoDone:"Datos de ejemplo restaurados."
 };
 I18N.de.license = {
   title:"Lizenz", statusUnlocked:"Vollversion freigeschaltet", statusDemo:"Demo — Beispieldaten",
   enterCode:"Gib deinen Aktivierungscode ein", codePlaceholder:"COFA-B2C3-D4E5-F607", unlock:"Freischalten",
   invalidCode:"Dieser Code ist ungültig. Auf Tippfehler prüfen.", unlockedMessage:"Freigeschaltet! Danke, dass du Coffer unterstützt.",
-  whereToBuy:"Bei Etsy gekauft? Dein Aktivierungscode liegt deiner Bestellung bei.", demoNote:"Coffer ist schon jetzt voll nutzbar — ein Aktivierungscode entfernt nur dauerhaft auf diesem Gerät die Demo-Kennzeichnung und die Beispieldaten-Markierung."
+  whereToBuy:"Bei Etsy gekauft? Dein Aktivierungscode liegt deiner Bestellung bei.", demoNote:"Coffer ist schon jetzt voll nutzbar — ein Aktivierungscode entfernt nur dauerhaft auf diesem Gerät die Demo-Kennzeichnung und die Beispieldaten-Markierung.",
+  previewDayOne:"Tag 1 als Vorschau ansehen", previewDayOneConfirm:"Dadurch werden die Beispiel-Transaktionen, -Konten, -Schulden und -Sparziele gelöscht, damit du Coffer komplett leer siehst — wie eine brandneue Installation. Sprache, Design und andere Einstellungen bleiben erhalten. Du kannst die Beispieldaten von hier aus jederzeit wiederherstellen.", previewDayOneDone:"Beispieldaten gelöscht.",
+  restoreDemo:"Beispieldaten wiederherstellen", restoreDemoConfirm:"Dadurch wird der aktuelle leere Zustand wieder durch ein volles Jahr an Beispieldaten ersetzt, damit du Coffer vorausgefüllt sehen kannst.", restoreDemoDone:"Beispieldaten wiederhergestellt."
 };
 
 function t(key, params){
@@ -1368,10 +1668,7 @@ function renderShell(){
 
   const main = h("div.main", {}, [
     topbarMobile,
-    state.isDemo ? h("div.demo-banner", {}, [
-      "🔖 "+t("common.demo")+" — sample data.",
-      h("button", { onclick:()=> Router.go("settings?tab=license") }, [t("common.unlock")])
-    ]) : null,
+    renderDemoBanner(state),
     renderStatusBar(),
     h("div.content", { id:"contentRoot" })
   ]);
@@ -1441,14 +1738,30 @@ function renderMiniCalendar(){
   ]);
 }
 
+function renderDemoBanner(state){
+  if(!state.isDemo) return null;
+  return h("div.demo-banner", {}, [
+    "🔖 "+t("common.demoBannerText"),
+    h("button", { onclick:()=> Router.go("settings?tab=license") }, [t("common.unlock")]),
+    state.transactions.length
+      ? h("button", { onclick:resetToEmptyDemo }, [t("license.previewDayOne")])
+      : h("button", { onclick:restoreDemoData }, [t("license.restoreDemo")])
+  ]);
+}
 function refreshShellChrome(){
   const sb = document.querySelector(".statusbar");
   if(sb) sb.replaceWith(renderStatusBar());
   const mc = document.querySelector(".mini-cal");
   if(mc) mc.replaceWith(renderMiniCalendar());
-  const banner = document.querySelector(".demo-banner");
   const state = Store.get();
-  if(!state.isDemo && banner) banner.remove();
+  const banner = document.querySelector(".demo-banner");
+  const freshBanner = renderDemoBanner(state);
+  if(banner && freshBanner) banner.replaceWith(freshBanner);
+  else if(banner && !freshBanner) banner.remove();
+  else if(!banner && freshBanner){
+    const topbar = document.querySelector(".topbar-mobile");
+    if(topbar) topbar.insertAdjacentElement("afterend", freshBanner);
+  }
 }
 
 /* ===== SECTION: PLACEHOLDER ROUTES (filled in by later sections) ===== */
@@ -1722,7 +2035,7 @@ function openTransactionModal(existingTx, opts){
   function fieldsForCategory(){
     const extra = [];
     if(form.category==="expenses"){
-      extra.push(field(t("common.type"), selectEl([{value:"payment",label:t("tx.payment")},{value:"refund",label:t("tx.refund")}], form.type, v=>{ form.type=v; }), null, null));
+      extra.push(field("🔀 "+t("common.type"), selectEl([{value:"payment",label:t("tx.payment")},{value:"refund",label:t("tx.refund")}], form.type, v=>{ form.type=v; }), null, null));
       extra.push(h("div.checkbox-field", {}, [
         h("input", { type:"checkbox", id:"pwc", checked:form.paidWithCard, onchange:(e)=>{ form.paidWithCard=e.target.checked; } }),
         h("label", { for:"pwc" }, [t("tx.paidWithCard")])
@@ -1734,26 +2047,26 @@ function openTransactionModal(existingTx, opts){
   function bodyEl(){
     const nameListId = "namelist-"+form.category;
     const body = h("form.tx-form", { onsubmit:(e)=>e.preventDefault() }, [
-      field(t("common.category"), selectEl(categoryOptions(), form.category, v=>{ form.category=v; rerender(); }), null, null),
-      field(t("common.name"), h("div", {}, [
+      field("🏷️ "+t("common.category"), selectEl(categoryOptions(), form.category, v=>{ form.category=v; rerender(); }), null, null),
+      field("✏️ "+t("common.name"), h("div", {}, [
         h("input", { type:"text", list:nameListId, value:form.name, oninput:(e)=>{ form.name=e.target.value; } }),
         h("datalist", { id:nameListId }, nameOptionsFor(state, form.category).map(n=>h("option",{value:n})))
       ]), t("tx.nameHint")),
       h("div.field-row", {}, [
-        field(t("common.amount"), h("input", { type:"number", step:"0.01", min:"0", value:form.amount, oninput:(e)=>{ form.amount=parseFloat(e.target.value)||0; } })),
-        field(t("common.date"), h("input", { type:"date", value:form.dueDate, oninput:(e)=>{ form.dueDate=e.target.value; } }))
+        field("💰 "+t("common.amount"), h("input", { type:"number", step:"0.01", min:"0", value:form.amount, oninput:(e)=>{ form.amount=parseFloat(e.target.value)||0; } })),
+        field("📅 "+t("common.date"), h("input", { type:"date", value:form.dueDate, oninput:(e)=>{ form.dueDate=e.target.value; } }))
       ]),
       h("div.field-row", {}, [
-        field(t("common.account"), selectEl([{value:"",label:t("tx.noAccount")}].concat(accountOptions(state)), form.accountId||"", v=>{ form.accountId=v||null; })),
-        field(t("common.priority"), selectEl(priorityOptions(state), String(form.priority), v=>{ form.priority=Number(v); }))
+        field("🏦 "+t("common.account"), selectEl([{value:"",label:t("tx.noAccount")}].concat(accountOptions(state)), form.accountId||"", v=>{ form.accountId=v||null; })),
+        field("⭐ "+t("common.priority"), selectEl(priorityOptions(state), String(form.priority), v=>{ form.priority=Number(v); }))
       ]),
       h("div.field-row", {}, [
-        field(t("common.frequency"), selectEl(RECUR_FREQS.map(f=>({value:f,label:t("common."+f)})), form.recurrence.frequency, v=>{ form.recurrence.frequency=v; rerender(); })),
+        field("🔁 "+t("common.frequency"), selectEl(RECUR_FREQS.map(f=>({value:f,label:t("common."+f)})), form.recurrence.frequency, v=>{ form.recurrence.frequency=v; rerender(); })),
         form.recurrence.frequency!=="oneTime" ? field(t("common.endDate"), h("input", { type:"date", value:form.recurrence.endDate||"", oninput:(e)=>{ form.recurrence.endDate=e.target.value||null; } })) : null
       ]),
       form.recurrence.frequency!=="oneTime" ? h("div.hint", { style:"margin:-6px 0 12px;" }, [t("tx.recurrenceHint")]) : null,
       ...fieldsForCategory(),
-      field(t("common.notes"), h("textarea", { oninput:(e)=>{ form.notes=e.target.value; } }, [form.notes||""])),
+      field("📝 "+t("common.notes"), h("textarea", { oninput:(e)=>{ form.notes=e.target.value; } }, [form.notes||""])),
       isSeriesMember ? field(t("tx.applyChangesTo"), selectEl([
         {value:"occurrence",label:t("tx.editThisOccurrence")}, {value:"series",label:t("tx.editEntireSeries")}
       ], editScope, v=>{ editScope=v; })) : null,
@@ -1918,7 +2231,7 @@ function renderTransactionsList(){
   ]) : h("div.empty-state", {}, [ h("div.big",{},["📄"]), h("p",{},[t("list.noResults")]) ]);
 
   mountContent(h("div", {}, [
-    h("div.toolbar", {}, [ h("h2",{},[t("list.title")]), h("div.spacer"), h("button.btn.btn-primary", { onclick:()=>openTransactionModal(null,{onSaved:renderTransactionsList}) }, ["+ "+t("list.addNew")]) ]),
+    h("div.toolbar", {}, [ h("h2",{},[t("list.title")]), helpButton("transactions"), h("div.spacer"), h("button.btn.btn-primary", { onclick:()=>openTransactionModal(null,{onSaved:renderTransactionsList}) }, ["+ "+t("list.addNew")]) ]),
     filterBar,
     h("div.card", {}, [table])
   ]));
@@ -1982,8 +2295,8 @@ function renderSettings(params, query){
       return wrap;
     }
     panel = h("div", {}, [
-      h("div.card-grid", {}, CATEGORY_KEYS.map(cat=> h("div.card", {}, [
-        h("h3", {}, [t("cat."+cat)]),
+      h("div.card-grid", {}, CATEGORY_KEYS.map(cat=> h("div.card", { style:"border-top:3px solid var(--"+CATEGORY_COLOR_VAR[cat]+");" }, [
+        h("h3", {}, [h("span.badge.badge-"+cat, {}, [t("cat."+cat)])]),
         nameEditor(cat, state.settings.categoryNames[cat], ()=>{ Store.mutate(s=>{}); renderSettings(); })
       ]))),
       h("div.card", {}, [
@@ -2000,7 +2313,7 @@ function renderSettings(params, query){
     panel = renderLicensePanel(state);
   }
 
-  mountContent(h("div", {}, [ h("h2",{},[t("settings.title")]), tabBar, panel ]));
+  mountContent(h("div", {}, [ h("h2",{},[t("settings.title"), helpButton("settings")]), tabBar, panel ]));
 }
 ROUTE_HANDLERS.settings = renderSettings;
 /* ===== SECTION: BACKUP / EXPORT / IMPORT / AUTO-FOLDER ===== */
@@ -2065,6 +2378,27 @@ function openClearAllModal(){
     field(t("backup.typeToConfirm"), h("input", { type:"text", oninput:(e)=>{ typed=e.target.value; btn.disabled = typed!==word; } }))
   ]);
   openModal({ title:t("common.clearAll"), body, footer:[ h("button.btn", { onclick:()=>closeModal() }, [t("common.cancel")]), btn ] });
+}
+
+/** Lets a prospect see Coffer genuinely empty without losing the option to
+ *  bring the pre-filled demo back — same reset logic as Clear All Data,
+ *  but isDemo stays true (paired with restoreDemoData below). */
+function resetToEmptyDemo(){
+  confirmDialog(t("license.previewDayOneConfirm"), ()=>{
+    Store.set(Object.assign(defaultState(), { settings: Object.assign(defaultSettings(), { license: deepClone(Store.get().settings.license) }), isDemo:true }));
+    toast(t("license.previewDayOneDone"));
+    refreshCurrentRoute();
+  });
+}
+function restoreDemoData(){
+  confirmDialog(t("license.restoreDemoConfirm"), ()=>{
+    const fresh = defaultState();
+    fresh.settings = Object.assign(defaultSettings(), { license: deepClone(Store.get().settings.license) });
+    seedDemoData(fresh);
+    Store.set(fresh);
+    toast(t("license.restoreDemoDone"));
+    refreshCurrentRoute();
+  });
 }
 
 /* File System Access API auto-save (Chromium only; feature-detected). The
@@ -2162,6 +2496,15 @@ function renderBackupPanel(state){
           !activeDirHandle ? h("button.btn.btn-sm", { onclick:reconnectAutoFolder }, [t("backup.chooseFolder")]) : null,
           h("button.btn.btn-sm.btn-danger", { onclick:stopAutoFolder }, [t("backup.stopFolder")])
         ]) : h("button.btn", { onclick:chooseAutoFolder }, [t("backup.chooseFolder")])
+    ]),
+    h("details.card", {}, [
+      h("summary", {}, [t("backup.multiDeviceTitle")]),
+      h("div", { style:"margin-top:12px;" }, [
+        h("h4", {}, [t("backup.onComputer")]),
+        h("ol", { style:"margin:0 0 14px;padding-left:20px;" }, tArray("backup","computerSteps").map(s=>h("li",{style:"margin-bottom:6px;"},[s]))),
+        h("h4", {}, [t("backup.onPhone")]),
+        h("ol", { style:"margin:0;padding-left:20px;" }, tArray("backup","phoneSteps").map(s=>h("li",{style:"margin-bottom:6px;"},[s])))
+      ])
     ])
   ]);
 }
@@ -2267,7 +2610,7 @@ function renderCalendar(params){
 
   const toolbar = h("div.cal-toolbar", {}, [
     h("button.btn.btn-sm", { onclick:()=>Router.go("calendar/"+addMonths(calMonth+"-01",-1).slice(0,7)) }, ["‹"]),
-    h("h2", {}, [fmtMonthYear(calMonth)]),
+    h("h2", {}, [fmtMonthYear(calMonth), helpButton("calendar")]),
     h("button.btn.btn-sm", { onclick:()=>Router.go("calendar/"+addMonths(calMonth+"-01",1).slice(0,7)) }, ["›"]),
     h("button.btn.btn-sm", { onclick:()=>Router.go("calendar/"+todayISO().slice(0,7)) }, [t("common.today")]),
     h("div.cal-toggles", {}, [
@@ -2460,7 +2803,7 @@ function renderMonthlyInsights(params){
     ]);
   });
 
-  mountContent(h("div", {}, [ h("h2",{},[t("insights.monthlyTitle")]), picker, h("div.card-grid", {}, cards) ]));
+  mountContent(h("div", {}, [ h("h2",{},[t("insights.monthlyTitle"), helpButton("insights-monthly")]), picker, h("div.card-grid", {}, cards) ]));
 }
 ROUTE_HANDLERS["insights-monthly"] = renderMonthlyInsights;
 function renderStatusBarInline(){ refreshShellChrome(); }
@@ -2504,7 +2847,7 @@ function renderYearlyOverview(params){
     return h("div.card.chart-card", {}, [ h("h3",{},[t("cat."+cat)]), barChart(bars), table ]);
   });
 
-  mountContent(h("div", {}, [ h("h2",{},[t("insights.yearlyTitle")]), picker,
+  mountContent(h("div", {}, [ h("h2",{},[t("insights.yearlyTitle"), helpButton("insights-yearly")]), picker,
     h("div.card", {}, [ h("h3",{},[t("insights.yearPlannedVsPaid")]), summaryTable ]),
     h("h3", { style:"margin:18px 0 8px;" }, [t("insights.monthlyTrend")]),
     h("div.card-grid", {}, trendCards)
@@ -2562,7 +2905,7 @@ function renderAccounts(){
   const segments = rows.filter(r=>r.balance>0).map((r,i)=>({ label:r.acct.name, value:r.balance, color:CHART_PALETTE[i%CHART_PALETTE.length] }));
 
   mountContent(h("div", {}, [
-    h("div.toolbar", {}, [ h("h2",{},[t("acct.title")]), h("div.spacer"), h("button.btn.btn-primary", { onclick:()=>openAccountModal(null) }, ["+ "+t("acct.addAccount")]) ]),
+    h("div.toolbar", {}, [ h("h2",{},[t("acct.title")]), helpButton("accounts"), h("div.spacer"), h("button.btn.btn-primary", { onclick:()=>openAccountModal(null) }, ["+ "+t("acct.addAccount")]) ]),
     h("div.card", {}, [table]),
     segments.length ? chartCard(t("acct.distribution"), donutChart(segments), chartLegend(segments)) : null
   ]));
@@ -2653,7 +2996,7 @@ function renderDebtPlanner(){
   const dp = debtPlannerSettings(state);
   if(!state.debts.length){
     mountContent(h("div",{},[
-      h("div.toolbar", {}, [ h("h2",{},[t("debt.title")]), h("div.spacer"), h("button.btn.btn-primary",{onclick:()=>openDebtModal(null)},["+ "+t("debt.addDebt")]) ]),
+      h("div.toolbar", {}, [ h("h2",{},[t("debt.title")]), helpButton("debt"), h("div.spacer"), h("button.btn.btn-primary",{onclick:()=>openDebtModal(null)},["+ "+t("debt.addDebt")]) ]),
       h("div.empty-state",{},[h("div.big",{},["🎉"]),h("p",{},[t("debt.noDebts")])])
     ]));
     return;
@@ -2699,7 +3042,7 @@ function renderDebtPlanner(){
   ]);
 
   mountContent(h("div", {}, [
-    h("div.toolbar", {}, [ h("h2",{},[t("debt.title")]), h("div.spacer"), h("button.btn.btn-primary",{onclick:()=>openDebtModal(null)},["+ "+t("debt.addDebt")]) ]),
+    h("div.toolbar", {}, [ h("h2",{},[t("debt.title")]), helpButton("debt"), h("div.spacer"), h("button.btn.btn-primary",{onclick:()=>openDebtModal(null)},["+ "+t("debt.addDebt")]) ]),
     controls, orderList,
     h("div.card", {}, [ h("h3",{},[t("debt.payoffTimeline")]), h("p",{},[t("debt.debtFree")+" "+fmtDate(sim.payoffDate)+" · "+t("debt.totalInterest")+": "+fmtMoney(sim.totalInterest)]), table ])
   ]));
@@ -2759,7 +3102,7 @@ function renderSinkingFunds(){
     ]);
   });
   mountContent(h("div", {}, [
-    h("div.toolbar", {}, [ h("h2",{},[t("funds.title")]), h("div.spacer"), h("button.btn.btn-primary",{onclick:()=>openFundModal(null)},["+ "+t("funds.addFund")]) ]),
+    h("div.toolbar", {}, [ h("h2",{},[t("funds.title")]), helpButton("sinkingFunds"), h("div.spacer"), h("button.btn.btn-primary",{onclick:()=>openFundModal(null)},["+ "+t("funds.addFund")]) ]),
     state.sinkingFunds.length ? h("div.card-grid", {}, cards) : h("div.empty-state",{},[h("div.big",{},["🎯"]),h("p",{},[t("funds.noFunds")])])
   ]));
 }
@@ -2802,7 +3145,7 @@ function renderNetWorth(){
   const chart = snaps.length>1 ? lineChart(snaps.map(s=>({ x:s.date, y:s.assets.reduce((a,x)=>a+x.value,0)-s.liabilities.reduce((a,x)=>a+x.value,0) })), {}) : null;
 
   mountContent(h("div", {}, [
-    h("h2",{},[t("nw.title")]),
+    h("h2",{},[t("nw.title"), helpButton("netWorth")]),
     h("div.card", {}, [ h("h3",{},[t("nw.netWorthNow")]), h("p", { class:"num", style:"font-size:26px;font-weight:700;" }, [fmtMoney(net)]),
       h("button.btn.btn-primary.btn-sm", { onclick:()=>{
         Store.mutate(s=>{ s.netWorthSnapshots.push({ id:uid("snap"), date:todayISO(), assets, liabilities }); });
@@ -2868,7 +3211,7 @@ function render503020(){
     ]);
   });
 
-  mountContent(h("div", {}, [ h("h2",{},[t("b503020.title")]), picker,
+  mountContent(h("div", {}, [ h("h2",{},[t("b503020.title"), helpButton("budget5030")]), picker,
     h("p", {}, [t("b503020.income")+": "+fmtMoney(income)]),
     ratioEditor, h("div.card-grid", {}, bucketCards)
   ]));
@@ -2927,7 +3270,7 @@ function renderPaycheck(){
     ])))
   ]) : h("div.empty-state",{},[t("common.noData")]);
 
-  mountContent(h("div", {}, [ h("h2",{},[t("paycheck.title")]), settingsCard, nav,
+  mountContent(h("div", {}, [ h("h2",{},[t("paycheck.title"), helpButton("paycheck")]), settingsCard, nav,
     h("div.card", {}, [ h("p",{},[t("paycheck.income")+": "+fmtMoney(income)+"  ·  "+t("paycheck.outflow")+": "+fmtMoney(outflow)+"  ·  "+t("paycheck.net")+": "+fmtMoney(income-outflow)]) ]),
     h("div.card", {}, [table])
   ]));
@@ -2991,7 +3334,7 @@ function renderDashboard(){
   ];
 
   mountContent(h("div", {}, [
-    h("h2",{},[t("dash.title")+" — "+year]),
+    h("h2",{},[t("dash.title")+" — "+year, helpButton("dashboard")]),
     tiles,
     chartCard(t("dash.incomeVsExpenses"), groupedBarChart(incomeExpenseGroups), incomeExpenseTable),
     chartCard(t("dash.budgetVsReal"), groupedBarChart(budgetVsActualGroups), chartLegend([{label:"Goal",value:budgetVsActualGroups.reduce((s,g)=>s+g.bars[0].value,0),color:"var(--gold)"},{label:"Actual",value:budgetVsActualGroups.reduce((s,g)=>s+g.bars[1].value,0),color:"var(--pine)"}])),
@@ -3037,7 +3380,7 @@ function renderNoSpend(){
   const pct = target>0 ? clamp(noSpend/target*100,0,100) : 0;
 
   mountContent(h("div", {}, [
-    h("h2",{},[t("nospend.title")]),
+    h("h2",{},[t("nospend.title"), helpButton("noSpend")]),
     h("div.card", {}, [
       h("h3",{},[fmtMonthYear(ym)]),
       field(t("nospend.targetDays"), h("input", { type:"number", min:"0", max:"31", value:target, oninput:(e)=>{ state.settings.noSpendTargetsByMonth[ym]=Number(e.target.value)||0; Store.mutate(s=>{}); renderNoSpend(); } })),
@@ -3053,33 +3396,74 @@ function renderNoSpend(){
 ROUTE_HANDLERS.noSpend = renderNoSpend;
 
 /* ===== SECTION: ONBOARDING / HELP ===== */
-function maybeShowHelp(routeName){
+/** Generic lookup for array-shaped I18N content (step lists, etc.) —
+ *  same current-language-then-English-fallback logic as t(), but for
+ *  values that aren't a single string. */
+function tArray(group, name){
+  const lang = (Store.get().settings.language) || "en";
+  const val = (I18N[lang] && I18N[lang][group] && I18N[lang][group][name])
+    || (I18N.en[group] && I18N.en[group][name]) || [];
+  return val;
+}
+function helpSteps(routeName){ return tArray("help", routeName); }
+
+/** Shows the help modal for a route. Called with no options (or force:false)
+ *  on a route's first visit, where it respects seenHelp; the reopenable "?"
+ *  button in each page's header calls it with force:true to always show it. */
+function showHelp(routeName, opts){
+  opts = opts || {};
   const state = Store.get();
-  if(!I18N.en.help[routeName]) return;
-  if(state.settings.seenHelp[routeName]) return;
-  let dontShowAgain = true;
+  const steps = helpSteps(routeName);
+  if(!steps.length) return;
+  if(!opts.force && state.settings.seenHelp[routeName]) return;
+  let dontShowAgain = false;
   openModal({
     title: navLabel({route:routeName}) || t("nav."+routeName),
     body: h("div", {}, [
-      h("p", {}, [t("help."+routeName)]),
+      h("div.help-steps", {}, steps.map(step=> h("div.help-step", {}, [
+        h("h4", {}, [step.title]),
+        h("p", {}, [step.body])
+      ]))),
       h("div.checkbox-field", { style:"margin-top:14px;" }, [
-        h("input", { type:"checkbox", id:"dsa", checked:true, onchange:(e)=>{ dontShowAgain=e.target.checked; } }),
+        h("input", { type:"checkbox", id:"dsa", checked:false, onchange:(e)=>{ dontShowAgain=e.target.checked; } }),
         h("label", { for:"dsa" }, [t("help.dontShowAgain")])
       ])
     ]),
     footer: [ h("button.btn.btn-primary", { onclick:()=>{ if(dontShowAgain){ Store.mutate(s=>{ s.settings.seenHelp[routeName]=true; }); } closeModal(); } }, [t("help.gotIt")]) ]
   });
 }
+function maybeShowHelp(routeName){ showHelp(routeName, { force:false }); }
+/** Small reopenable "?" button for a page's header/toolbar — always visible,
+ *  ignores seenHelp so the help modal can be revisited any time. */
+function helpButton(routeName){
+  return h("button.help-icon-btn", { type:"button", onclick:()=>showHelp(routeName, { force:true }), "aria-label":t("help.reopenAria"), title:t("help.reopenAria") }, ["?"]);
+}
 
 /* ===== SECTION: QUICK START GUIDE ===== */
 function renderGuide(){
   window.__rerouteRefresh = renderGuide;
+  const recommendedItems = NAV_GROUPS.flatMap(g=>g.items).filter(item=>item.route!=="guide");
   mountContent(h("div", {}, [
     h("h2",{},[t("nav.guide")]),
     h("div.card", {}, [ h("p",{},[t("guide.intro")]) ]),
     h("div.card-grid", {}, [1,2,3,4].map(n=> h("div.card", {}, [
       h("h3",{},[t("guide.step"+n+"Title")]), h("p",{},[t("guide.step"+n+"Body")])
-    ])))
+    ]))),
+    h("div.card", {}, [
+      h("h3",{},[t("guide.whereToStartTitle")]),
+      h("ol", { style:"margin:0;padding-left:20px;" }, recommendedItems.map(item=>{
+        const steps = helpSteps(item.route);
+        return h("li", { style:"margin-bottom:8px;" }, [
+          h("strong", {}, [navLabel(item)]),
+          steps.length ? h("span", {}, [" — "+steps[0].body]) : null
+        ]);
+      }))
+    ]),
+    SUPPORT_CONTACT_EMAIL ? h("div.card", {}, [
+      h("h3",{},[t("guide.supportTitle")]),
+      h("p",{},[t("guide.supportBody")]),
+      h("p",{},[h("a",{href:"mailto:"+SUPPORT_CONTACT_EMAIL},[SUPPORT_CONTACT_EMAIL])])
+    ]) : null
   ]));
 }
 ROUTE_HANDLERS.guide = renderGuide;
@@ -3142,6 +3526,11 @@ function renderLicensePanel(state){
   return h("div.card", {}, [
     h("h3",{},[t("license.statusDemo")]),
     h("p.hint", {}, [t("license.demoNote")]),
+    h("div", { style:"display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 14px;" }, [
+      state.transactions.length
+        ? h("button.btn.btn-sm", { onclick:resetToEmptyDemo }, [t("license.previewDayOne")])
+        : h("button.btn.btn-sm", { onclick:restoreDemoData }, [t("license.restoreDemo")])
+    ]),
     field(t("license.enterCode"), h("input", { type:"text", placeholder:t("license.codePlaceholder"), oninput:(e)=>{ draft=e.target.value; e.target.value=formatLicenseCodeInput(draft); draft=e.target.value; } })),
     errorBox,
     h("button.btn.btn-primary", { onclick:()=>{

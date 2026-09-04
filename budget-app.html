@@ -274,6 +274,23 @@ table{ border-collapse:collapse; width:100%; }
 .stat-card .stat-icon{ width:44px; height:44px; border-radius:11px; font-size:20px; }
 .stat-card h3{ margin:2px 0 4px; }
 
+/* Full-bleed colored banner header for category-themed cards (Monthly
+   Insights, Yearly Overview): pulls out of the card's own padding via
+   negative margin rather than requiring every .card to change shape. */
+.card-band .band-head{
+  margin:-18px -20px 16px; padding:14px 20px; color:#fff; font-weight:800; font-size:14.5px;
+  letter-spacing:.06em; text-transform:uppercase; font-family:var(--font-ui);
+  border-radius:var(--radius) var(--radius) 0 0; display:flex; align-items:center; gap:.5em;
+}
+.card-band .band-row{
+  display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;
+}
+.card-band .band-row .band-row-label{ display:flex; align-items:center; gap:.5em; font-weight:700; font-size:14.5px; }
+.card-band .band-row input[type=number]{ width:110px; text-align:right; }
+.band-bar{ background:var(--line); border-radius:20px; height:8px; overflow:hidden; margin-bottom:14px; }
+.band-bar .fill{ height:100%; border-radius:20px; }
+table.data-table tfoot td{ font-weight:800; border-top:2px solid var(--line-strong); border-bottom:0; }
+
 .ledger-rule{ border:0; border-top:1px solid var(--line); margin:12px 0; }
 
 details.card > summary{ cursor:pointer; font-family:var(--font-serif); font-weight:700; font-size:18.5px; }
@@ -440,6 +457,12 @@ const CATEGORY_KEYS = ["income","savings","bills","expenses","debtPayments","sub
 // Same color mapping as the .badge-<category> CSS classes (transactions, calendar
 // chips, charts) — reused here rather than introducing separate category colors.
 const CATEGORY_COLOR_VAR = { income:"good", savings:"pine", bills:"gold", expenses:"rust", debtPayments:"bad", subscriptions:"slate" };
+/* Fixed (theme-independent) shades for the colored card-band headers: the
+   --good/--gold/etc. tokens above turn into light pastels in dark mode
+   (meant as text/icon accents there), which would fail contrast as a
+   solid banner behind white text — so band fills use their own constants. */
+const CATEGORY_BAND_HEX = { income:"#15803D", savings:"#0F766E", bills:"#B45309", expenses:"#C2410C", debtPayments:"#B91C1C", subscriptions:"#475569" };
+const OVERVIEW_BAND_HEX = "#1D4ED8";
 const ACCOUNT_TYPES = ["checking","savings","cash","creditCard"];
 const RECUR_FREQS = ["oneTime","daily","weekly","biweekly","monthly","every2months","quarterly","yearly"];
 const PRIORITY_COUNT = 5;
@@ -2756,6 +2779,17 @@ function chartCard(title, chartNode, legendOrTableNode, help){
     h("div.chart-wrap", {}, [ chartNode, legendOrTableNode ])
   ]);
 }
+/** Card with a full-width colored banner header, used for the per-category
+ *  cards on Monthly Insights / Yearly Overview. `bandColor` is a literal CSS
+ *  color (e.g. a fixed hex from CATEGORY_BAND_HEX) — not a theme-variable
+ *  token, since the banner needs to stay dark enough for white text in both
+ *  light and dark theme. */
+function bandCard(bandColor, title, bodyChildren){
+  return h("div.card.card-band", {}, [
+    h("div.band-head", { style:"background:"+bandColor+";" }, [title]),
+    h("div.band-body", {}, bodyChildren)
+  ]);
+}
 
 /* ===== SECTION: MONTHLY INSIGHTS ===== */
 function monthBudgetRecord(state, ym){
@@ -2789,6 +2823,7 @@ function renderMonthlyInsights(params){
     const totalExpected = items.reduce((s,tx)=>s+tx.amount,0);
     const totalPaid = items.filter(tx=>tx.status==="paid").reduce((s,tx)=>s+tx.amount,0);
     const goal = rec.categoryGoals[cat]||0;
+    const colorVar = CATEGORY_COLOR_VAR[cat];
     let goalNote = null;
     if(goal>0){
       const diff = totalPaid - goal;
@@ -2796,18 +2831,23 @@ function renderMonthlyInsights(params){
         diff>0 ? t("insights.overBudget") : (diff<0 ? t("insights.underBudget") : t("insights.onGoal")), " ("+fmtMoney(Math.abs(diff))+")"
       ]);
     }
+    const progressPct = goal>0 ? clamp(totalPaid/goal*100,0,100) : (totalExpected>0 ? clamp(totalPaid/totalExpected*100,0,100) : 0);
     const table = items.length ? h("table.data-table", {}, [
       h("thead",{},[h("tr",{},[t("common.name"),t("insights.expected"),t("common.status")].map(c=>h("th",{},[c])))]),
-      h("tbody",{}, items.map(tx=> h("tr",{},[ h("td",{},[tx.name]), h("td.num",{},[fmtMoney(tx.amount)]), h("td",{},[h("span.badge.badge-"+deriveStatus(tx),{},[t("common."+deriveStatus(tx))])]) ])))
+      h("tbody",{}, items.map(tx=> h("tr",{},[ h("td",{},[tx.name]), h("td.num",{},[fmtMoney(tx.amount)]), h("td",{},[h("span.badge.badge-"+deriveStatus(tx),{},[t("common."+deriveStatus(tx))])]) ]))),
+      h("tfoot",{},[ h("tr",{},[ h("td",{},[t("common.total")]), h("td.num",{},[fmtMoney(totalExpected)]), h("td",{},[""]) ]) ])
     ]) : h("p", { class:"hint" }, [t("insights.noItems")]);
-    return h("div.card.chart-card", {}, [
-      h("h3",{},[t("cat."+cat)]),
+    return bandCard(CATEGORY_BAND_HEX[cat], t("cat."+cat), [
+      h("div.band-row", {}, [
+        h("span.band-row-label",{},[t("insights.goal")]),
+        h("input", { type:"number", step:"0.01", value:goal, oninput:(e)=>{ rec.categoryGoals[cat]=parseFloat(e.target.value)||0; Store.mutate(s=>{}); renderMonthlyInsights(); } })
+      ]),
+      h("div.band-bar", {}, [ h("div.fill", { style:"width:"+progressPct+"%;background:var(--"+colorVar+");" }) ]),
+      goalNote,
       h("div.chart-wrap", {}, [
         items.length ? donutChart(segments, { centerLabel: fmtMoney(totalExpected).replace(/\.00$/,""), ariaLabel:t("cat."+cat) }) : h("div", { style:"width:150px;height:150px;display:flex;align-items:center;justify-content:center;color:var(--ink-faint);font-size:14px;" }, [t("insights.noItems")]),
         chartLegend(segments)
       ]),
-      h("div.field", {}, [ h("label",{},[t("insights.goal")]), h("input", { type:"number", step:"0.01", value:goal, oninput:(e)=>{ rec.categoryGoals[cat]=parseFloat(e.target.value)||0; Store.mutate(s=>{}); renderMonthlyInsights(); } }) ]),
-      goalNote,
       h("h4", { style:"font-size:14.5px;margin:10px 0 6px;color:var(--ink-soft);" }, [t("insights.expectedVsPaid")+" — "+fmtMoney(totalPaid)+" "+t("common.of")+" "+fmtMoney(totalExpected)]),
       table
     ]);
@@ -2834,31 +2874,39 @@ function renderYearlyOverview(params){
 
   const totalPlanned = yearTx.reduce((s,tx)=>s+tx.amount,0);
   const totalPaid = yearTx.filter(tx=>tx.status==="paid").reduce((s,tx)=>s+tx.amount,0);
+  const categoryTotals = CATEGORY_KEYS.map(cat=>{
+    const items = yearTx.filter(tx=>tx.category===cat);
+    return { cat, planned: items.reduce((s,tx)=>s+tx.amount,0), paid: items.filter(tx=>tx.status==="paid").reduce((s,tx)=>s+tx.amount,0) };
+  });
+  const breakdownSegments = categoryTotals.map(x=>({ label:t("cat."+x.cat), value:x.paid, color:"var(--"+CATEGORY_COLOR_VAR[x.cat]+")" }));
   const summaryTable = h("table.data-table", {}, [
     h("thead",{},[h("tr",{},[t("common.category"),t("common.planned"),t("common.paid")].map(c=>h("th",{},[c])))]),
-    h("tbody",{}, CATEGORY_KEYS.map(cat=>{
-      const items = yearTx.filter(tx=>tx.category===cat);
-      const planned = items.reduce((s,tx)=>s+tx.amount,0);
-      const paid = items.filter(tx=>tx.status==="paid").reduce((s,tx)=>s+tx.amount,0);
-      return h("tr",{},[ h("td",{},[t("cat."+cat)]), h("td.num",{},[fmtMoney(planned)]), h("td.num",{},[fmtMoney(paid)]) ]);
-    }).concat([ h("tr", { style:"font-weight:700;" }, [ h("td",{},[t("common.total")]), h("td.num",{},[fmtMoney(totalPlanned)]), h("td.num",{},[fmtMoney(totalPaid)]) ]) ]))
+    h("tbody",{}, categoryTotals.map(x=> h("tr",{},[ h("td",{},[t("cat."+x.cat)]), h("td.num",{},[fmtMoney(x.planned)]), h("td.num",{},[fmtMoney(x.paid)]) ])).concat([ h("tr", { style:"font-weight:700;" }, [ h("td",{},[t("common.total")]), h("td.num",{},[fmtMoney(totalPlanned)]), h("td.num",{},[fmtMoney(totalPaid)]) ]) ]))
   ]);
 
   const monthLabels = Array.from({length:12},(_,i)=> new Intl.DateTimeFormat(localeTag(),{month:"short"}).format(new Date(2000,i,1)));
   const trendCards = CATEGORY_KEYS.map(cat=>{
+    const colorVar = CATEGORY_COLOR_VAR[cat];
     const monthly = Array.from({length:12},(_,i)=>{
       const ym = overviewYear+"-"+String(i+1).padStart(2,"0");
       return yearTx.filter(tx=>tx.category===cat && ymOf(tx.dueDate)===ym).reduce((s,tx)=>s+tx.amount,0);
     });
-    const bars = monthly.map((v,i)=>({ label:monthLabels[i], value:v, color:"var(--pine)" }));
+    const yearTotal = monthly.reduce((s,v)=>s+v,0);
+    const bars = monthly.map((v,i)=>({ label:monthLabels[i], value:v, color:"var(--"+colorVar+")" }));
     const table = h("table.data-table", { style:"font-size:13px;" }, [
-      h("tbody",{},[ h("tr",{}, monthLabels.map(m=>h("th",{},[m]))), h("tr",{}, monthly.map(v=>h("td.num",{},[fmtMoney(v)]))) ])
+      h("tbody",{},[
+        h("tr",{}, monthLabels.map(m=>h("th",{},[m])).concat([h("th",{},[t("common.total")])])),
+        h("tr",{}, monthly.map(v=>h("td.num",{},[fmtMoney(v)])).concat([h("td.num",{style:"font-weight:800;"},[fmtMoney(yearTotal)])]))
+      ])
     ]);
-    return h("div.card.chart-card", {}, [ h("h3",{},[t("cat."+cat)]), barChart(bars), table ]);
+    return bandCard(CATEGORY_BAND_HEX[cat], t("cat."+cat), [ barChart(bars), table ]);
   });
 
   mountContent(h("div", {}, [ h("h2",{},[t("insights.yearlyTitle"), helpButton("insights-yearly")]), picker,
-    h("div.card", {}, [ h("h3",{},[t("insights.yearPlannedVsPaid")]), summaryTable ]),
+    bandCard(OVERVIEW_BAND_HEX, t("insights.yearPlannedVsPaid"), [
+      h("div.chart-wrap", {}, [ donutChart(breakdownSegments, { centerLabel: fmtMoney(totalPaid).replace(/\.00$/,""), ariaLabel:t("insights.yearPlannedVsPaid") }), chartLegend(breakdownSegments) ]),
+      summaryTable
+    ]),
     h("h3", { style:"margin:18px 0 8px;" }, [t("insights.monthlyTrend")]),
     h("div.card-grid", {}, trendCards)
   ]));
